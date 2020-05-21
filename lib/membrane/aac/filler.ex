@@ -1,4 +1,7 @@
 defmodule Membrane.AAC.Filler do
+  @moduledoc """
+  Element that feels gaps in AAC stream with silent frames.
+  """
   use Membrane.Filter
   alias Membrane.{Buffer, Time}
 
@@ -6,12 +9,23 @@ defmodule Membrane.AAC.Filler do
                   14>>
 
   @caps {Membrane.Caps.Audio.AAC,
-         profile: :LC, samples_per_frame: 1024, sample_rate: 44100, channels: 1}
+         profile: :LC, samples_per_frame: 1024, sample_rate: 44_100, channels: 1}
 
   def_input_pad :input, demand_unit: :buffers, caps: @caps
   def_output_pad :output, caps: @caps
 
   def_options init_timestamp: [default: nil]
+
+  defmodule State do
+    @moduledoc false
+
+    @type t :: %__MODULE__{
+            frame_duration: non_neg_integer() | nil,
+            expected_timestamp: non_neg_integer()
+          }
+
+    defstruct [:frame_duration, :expected_timestamp]
+  end
 
   @impl true
   def handle_init(opts) do
@@ -25,7 +39,8 @@ defmodule Membrane.AAC.Filler do
 
   @impl true
   def handle_caps(:input, caps, _ctx, state) do
-    state = %{state | frame_duration: caps.samples_per_frame / caps.sample_rate * Time.second()}
+    new_duration = caps.samples_per_frame / caps.sample_rate * Time.second()
+    state = %State{state | frame_duration: new_duration}
     {{:ok, forward: caps}, state}
   end
 
@@ -51,6 +66,8 @@ defmodule Membrane.AAC.Filler do
 
     {{:ok, buffer: {:output, buffers}}, %{state | expected_timestamp: expected_timestamp}}
   end
+
+  def silent_frame, do: @silent_frame
 
   defp silent_frame_needed?(expected_timestamp, current_timestamp, frame_duration) do
     use Ratio, comparison: true
