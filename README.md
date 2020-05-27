@@ -1,6 +1,6 @@
 # Membrane Multimedia Framework: AAC plugin
 
-[![CircleCI](https://circleci.com/gh/membraneframework/membrane_aac.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane_aac)
+[![CircleCI](https://circleci.com/gh/membraneframework/membrane_aac_plugin.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane_aac_plugin)
 
 This package provides elements complimentary elements for AAC.
 
