@@ -8,7 +8,7 @@ defmodule Membrane.AAC.Filler do
   @silent_frame <<222, 2, 0, 76, 97, 118, 99, 53, 56, 46, 53, 52, 46, 49, 48, 48, 0, 2, 48, 64,
                   14>>
 
-  @caps {Membrane.Caps.Audio.AAC, profile: :LC, channels: 1}
+  @caps {Membrane.AAC, profile: :LC, channels: 1}
 
   def_input_pad :input, demand_unit: :buffers, caps: @caps
   def_output_pad :output, caps: @caps
