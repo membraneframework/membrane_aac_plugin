@@ -1,6 +1,6 @@
 defmodule Membrane.AAC.Filler do
   @moduledoc """
-  Element that feels gaps in AAC stream with silent frames.
+  Element that fills gaps in AAC stream with silent frames.
   """
   use Membrane.Filter
   alias Membrane.{Buffer, Time}
@@ -14,22 +14,29 @@ defmodule Membrane.AAC.Filler do
   def_input_pad :input, demand_unit: :buffers, caps: @caps
   def_output_pad :output, caps: @caps
 
-  def_options init_timestamp: [default: nil]
-
   defmodule State do
     @moduledoc false
 
     @type t :: %__MODULE__{
-            frame_duration: non_neg_integer() | nil,
+            frame_duration: Membrane.Time.t(),
             expected_timestamp: non_neg_integer()
           }
 
     defstruct [:frame_duration, :expected_timestamp]
   end
 
+  @doc """
+  Returns a silent AAC frame that this element uses to fill gaps in the stream.
+  """
+  @spec silent_frame() :: binary()
+  def silent_frame, do: @silent_frame
+
   @impl true
-  def handle_init(opts) do
-    {:ok, %{expected_timestamp: opts.init_timestamp, frame_duration: nil}}
+  def handle_init(_opts) do
+    # Membrane normalizes timestamps
+    # and stream always starts with timestamp 0
+    initial_timestamp = 0
+    {:ok, %State{expected_timestamp: initial_timestamp, frame_duration: nil}}
   end
 
   @impl true
@@ -66,8 +73,6 @@ defmodule Membrane.AAC.Filler do
 
     {{:ok, buffer: {:output, buffers}}, %{state | expected_timestamp: expected_timestamp}}
   end
-
-  def silent_frame, do: @silent_frame
 
   defp silent_frame_needed?(expected_timestamp, current_timestamp, frame_duration) do
     use Ratio, comparison: true
