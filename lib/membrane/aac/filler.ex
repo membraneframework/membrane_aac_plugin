@@ -8,8 +8,7 @@ defmodule Membrane.AAC.Filler do
   @silent_frame <<222, 2, 0, 76, 97, 118, 99, 53, 56, 46, 53, 52, 46, 49, 48, 48, 0, 2, 48, 64,
                   14>>
 
-  @caps {Membrane.Caps.Audio.AAC,
-         profile: :LC, samples_per_frame: 1024, sample_rate: 44_100, channels: 1}
+  @caps {Membrane.Caps.Audio.AAC, profile: :LC, channels: 1}
 
   def_input_pad :input, demand_unit: :buffers, caps: @caps
   def_output_pad :output, caps: @caps
@@ -17,12 +16,18 @@ defmodule Membrane.AAC.Filler do
   defmodule State do
     @moduledoc false
 
+    @doc """
+    Membrane normalizes timestamps and stream always starts with timestamp 0.
+    """
+    @initial_timestamp 0
+
     @type t :: %__MODULE__{
             frame_duration: Membrane.Time.t(),
             expected_timestamp: non_neg_integer()
           }
 
-    defstruct [:frame_duration, :expected_timestamp]
+    @enforce_keys [:frame_duration]
+    defstruct [expected_timestamp: @initial_timestamp] ++ @enforce_keys
   end
 
   @doc """
@@ -33,10 +38,7 @@ defmodule Membrane.AAC.Filler do
 
   @impl true
   def handle_init(_opts) do
-    # Membrane normalizes timestamps
-    # and stream always starts with timestamp 0
-    initial_timestamp = 0
-    {:ok, %State{expected_timestamp: initial_timestamp, frame_duration: nil}}
+    {:ok, %State{frame_duration: nil}}
   end
 
   @impl true
@@ -76,6 +78,8 @@ defmodule Membrane.AAC.Filler do
 
   defp silent_frame_needed?(expected_timestamp, current_timestamp, frame_duration) do
     use Ratio, comparison: true
+    IO.inspect(expected_timestamp, label: "expected_timestamp")
+    IO.inspect(current_timestamp, label: "current")
     current_timestamp - expected_timestamp > frame_duration / 2
   end
 end
