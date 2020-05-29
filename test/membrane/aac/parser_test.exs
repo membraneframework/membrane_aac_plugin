@@ -22,7 +22,7 @@ defmodule Membrane.AAC.ParserTest do
 
     assert caps == %Membrane.AAC{
              channels: 1,
-             encapsulation: :adts,
+             encapsulation: :ADTS,
              frames_per_buffer: 1,
              mpeg_version: 2,
              profile: :LC,

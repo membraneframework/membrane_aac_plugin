@@ -7,9 +7,12 @@ defmodule Membrane.AAC.Parser.Helper do
   @crc_size 2
 
   @spec parse_adts(binary, AAC.t(), timestamp :: Ratio.t() | Time.t(), %{
-          samples_per_frame: 1024 | 960
+          samples_per_frame: 1024 | 960,
+          encapsulation: :none | :ADTS
         }) ::
-          {:ok, {[{:caps, AAC.t()} | {:buffer, Buffer.t()}], binary}} | {:error, :adts_header}
+          {:ok,
+           {[{:caps, AAC.t()} | {:buffer, Buffer.t()}], binary, timestamp :: Ratio.t() | Time.t()}}
+          | {:error, :adts_header}
   def parse_adts(data, caps, timestamp, options) do
     with {:ok, {output, {rest, timestamp}}} <-
            Bunch.List.try_unfoldr({data, caps, timestamp}, &do_parse_adts(&1, options)) do
@@ -21,13 +24,14 @@ defmodule Membrane.AAC.Parser.Helper do
        when byte_size(data) > @header_size + @crc_size do
     withl header: {:ok, frame_caps, header, crc, frame_length} <- parse_header(data, options),
           header: :ok <- verify_header(header, crc),
-          payload: <<frame::binary-size(frame_length), rest::binary>> <- data do
+          do: adts_size = byte_size(header) + byte_size(crc),
+          payload: {:frame, frame, rest} <- extract_frame(data, adts_size, frame_length, options) do
       caps = if caps == frame_caps, do: [], else: [caps: frame_caps]
       buffer = [buffer: %Buffer{payload: frame, metadata: %{timestamp: timestamp}}]
       {:ok, {:cont, caps ++ buffer, {rest, frame_caps, next_timestamp(timestamp, frame_caps)}}}
     else
       header: :error -> {:error, :adts_header}
-      payload: rest -> {:ok, {:halt, {rest, next_timestamp(timestamp, frame_caps)}}}
+      payload: :no_frame -> {:ok, {:halt, {data, next_timestamp(timestamp, frame_caps)}}}
     end
   end
 
@@ -56,7 +60,7 @@ defmodule Membrane.AAC.Parser.Helper do
       channels: AAC.channel_config_id_to_channels(channel_config_id),
       frames_per_buffer: aac_frames_cnt + 1,
       samples_per_frame: options.samples_per_frame,
-      encapsulation: :adts
+      encapsulation: options.out_encapsulation
     }
 
     {:ok, caps, header, crc, frame_length}
@@ -70,10 +74,29 @@ defmodule Membrane.AAC.Parser.Helper do
     if crc == CRC.crc_16(header), do: :ok, else: :error
   end
 
+  defp extract_frame(data, _adts_size, size, %{out_encapsulation: :ADTS}) do
+    case data do
+      <<frame::binary-size(size), rest::binary>> -> {:frame, frame, rest}
+      _ -> :no_frame
+    end
+  end
+
+  defp extract_frame(data, adts_size, size, %{out_encapsulation: :none}) do
+    frame_size = size - adts_size
+
+    case data do
+      <<_adts::binary-size(adts_size), frame::binary-size(frame_size), rest::binary>> ->
+        {:frame, frame, rest}
+
+      _ ->
+        :no_frame
+    end
+  end
+
   defp next_timestamp(timestamp, caps) do
     use Ratio
 
     timestamp +
-      Ratio.new(caps.samples_per_frame, Time.seconds(caps.sample_rate)) * caps.frames_per_buffer
+      Ratio.new(caps.samples_per_frame * caps.frames_per_buffer * Time.second(), caps.sample_rate)
   end
 end
