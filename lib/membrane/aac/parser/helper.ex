@@ -1,17 +1,18 @@
 defmodule Membrane.AAC.Parser.Helper do
   @moduledoc false
+  # Resources:
+  # https://wiki.multimedia.cx/index.php/ADTS
   use Bunch
   alias Membrane.{AAC, Buffer, Time}
 
   @header_size 7
   @crc_size 2
 
-  @spec parse_adts(binary, AAC.t(), timestamp :: Ratio.t() | Time.t(), %{
-          samples_per_frame: 1024 | 960,
-          encapsulation: :none | :ADTS
+  @spec parse_adts(binary, AAC.t(), AAC.Parser.timestamp_t(), %{
+          samples_per_frame: AAC.samples_per_frame_t(),
+          encapsulation: AAC.encapsulation_t()
         }) ::
-          {:ok,
-           {[{:caps, AAC.t()} | {:buffer, Buffer.t()}], binary, timestamp :: Ratio.t() | Time.t()}}
+          {:ok, {[{:caps, AAC.t()} | {:buffer, Buffer.t()}], binary, AAC.Parser.timestamp_t()}}
           | {:error, :adts_header}
   def parse_adts(data, caps, timestamp, options) do
     with {:ok, {output, {rest, timestamp}}} <-

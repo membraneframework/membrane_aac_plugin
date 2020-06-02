@@ -1,6 +1,11 @@
 defmodule Membrane.AAC.Parser do
   @moduledoc """
-  Parser for Advanced Audio Codec. Currently works only for ADTS-encapsulated AAC.
+  Parser for Advanced Audio Codec.
+
+  Supports both plain and ADTS-encapsulated output (configured by `out_encapsulation`),
+  but currently accepts only ADTS AAC input.
+
+  Adds sample rate based timestamp to metadata if absent.
   """
   use Membrane.Filter
   alias __MODULE__.Helper
@@ -10,7 +15,7 @@ defmodule Membrane.AAC.Parser do
   def_output_pad :output, caps: {AAC, samples_per_frame: 1024}
 
   def_options samples_per_frame: [
-                spec: 1024 | 960,
+                spec: AAC.samples_per_frame_t(),
                 default: 1024,
                 description: "Count of audio samples in each AAC frame"
               ],
@@ -21,6 +26,8 @@ defmodule Membrane.AAC.Parser do
                 Determines whether output AAC frames should be prepended with ADTS headers
                 """
               ]
+
+  @type timestamp_t :: Ratio.t() | Membrane.Time.t()
 
   @impl true
   def handle_init(options) do
