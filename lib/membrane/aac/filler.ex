@@ -78,8 +78,6 @@ defmodule Membrane.AAC.Filler do
 
   defp silent_frame_needed?(expected_timestamp, current_timestamp, frame_duration) do
     use Ratio, comparison: true
-    IO.inspect(expected_timestamp, label: "expected_timestamp")
-    IO.inspect(current_timestamp, label: "current")
     current_timestamp - expected_timestamp > frame_duration / 2
   end
 end
