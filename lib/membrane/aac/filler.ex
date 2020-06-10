@@ -16,9 +16,7 @@ defmodule Membrane.AAC.Filler do
   defmodule State do
     @moduledoc false
 
-    @doc """
-    Membrane normalizes timestamps and stream always starts with timestamp 0.
-    """
+    # Membrane normalizes timestamps and stream always starts with timestamp 0.
     @initial_timestamp 0
 
     @type t :: %__MODULE__{
