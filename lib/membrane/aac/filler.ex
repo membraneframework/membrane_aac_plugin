@@ -9,7 +9,7 @@ defmodule Membrane.AAC.Filler do
                   14>>
 
   # TODO Add support for multi channel audio
-  @caps {Membrane.Caps.Audio.AAC, profile: :LC, channels: 1}
+  @caps {Membrane.AAC, profile: :LC, channels: 1}
 
   def_input_pad :input, demand_unit: :buffers, caps: @caps
   def_output_pad :output, caps: @caps

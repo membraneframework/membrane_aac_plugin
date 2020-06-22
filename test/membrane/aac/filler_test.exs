@@ -71,7 +71,7 @@ defmodule Membrane.AAC.FillerTest do
         {actions, new_state} = buffer_generator.(state, size)
 
         if Enum.count(state) == Enum.count(non_empty_timestamps) do
-          caps = %Membrane.Caps.Audio.AAC{
+          caps = %Membrane.AAC{
             profile: :LC,
             # Values samples_per_frame and sample_rate are set to constants
             # that will result in Filler element state frame_duration field equal 1
