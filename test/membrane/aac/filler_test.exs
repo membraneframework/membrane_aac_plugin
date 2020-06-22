@@ -110,8 +110,8 @@ defmodule Membrane.AAC.FillerTest do
         assert expected_payload == received_payload
       end
 
-      refute_sink_buffer(pipeline, :sink, _, 0)
       assert_end_of_stream(pipeline, :sink)
+      refute_sink_buffer(pipeline, :sink, _, 0)
     end
   end
 end
