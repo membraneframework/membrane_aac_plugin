@@ -97,18 +97,21 @@ defmodule Membrane.AAC.FillerTest do
 
       {:ok, pipeline} = Pipeline.start_link(options)
       Pipeline.play(pipeline)
-      assert_end_of_stream(pipeline, :sink)
 
       for number <- List.first(non_empty_timestamps)..List.last(non_empty_timestamps) do
-        target_payload =
+        expected_payload =
           if number in non_empty_timestamps do
             number
           else
             Filler.silent_frame()
           end
 
-        assert_sink_buffer(pipeline, :sink, %Buffer{payload: ^target_payload})
+        assert_sink_buffer(pipeline, :sink, %Buffer{payload: received_payload})
+        assert expected_payload == received_payload
       end
+
+      assert_end_of_stream(pipeline, :sink)
+      refute_sink_buffer(pipeline, :sink, _, 0)
     end
   end
 end

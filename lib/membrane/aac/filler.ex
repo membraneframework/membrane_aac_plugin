@@ -8,6 +8,7 @@ defmodule Membrane.AAC.Filler do
   @silent_frame <<222, 2, 0, 76, 97, 118, 99, 53, 56, 46, 53, 52, 46, 49, 48, 48, 0, 2, 48, 64,
                   14>>
 
+  # TODO Add support for multi channel audio
   @caps {Membrane.AAC, profile: :LC, channels: 1}
 
   def_input_pad :input, demand_unit: :buffers, caps: @caps
@@ -16,9 +17,7 @@ defmodule Membrane.AAC.Filler do
   defmodule State do
     @moduledoc false
 
-    @doc """
-    Membrane normalizes timestamps and stream always starts with timestamp 0.
-    """
+    # Membrane normalizes timestamps and stream always starts with timestamp 0.
     @initial_timestamp 0
 
     @type t :: %__MODULE__{
@@ -78,8 +77,6 @@ defmodule Membrane.AAC.Filler do
 
   defp silent_frame_needed?(expected_timestamp, current_timestamp, frame_duration) do
     use Ratio, comparison: true
-    IO.inspect(expected_timestamp, label: "expected_timestamp")
-    IO.inspect(current_timestamp, label: "current")
     current_timestamp - expected_timestamp > frame_duration / 2
   end
 end
