@@ -72,11 +72,11 @@ defmodule Membrane.AAC.Filler do
       Stream.iterate(expected_timestamp, &(&1 + frame_duration))
       |> Enum.take_while(&silent_frame_needed?(&1, current_timestamp, frame_duration))
 
-    silent_frame = Map.fetch!(@silent_frames, state.channels)
+    silent_frame_payload = silent_frame(state.channels)
 
     buffers =
       Enum.map(silent_frames_timestamps, fn timestamp ->
-        %Buffer{buffer | payload: silent_frame}
+        %Buffer{buffer | payload: silent_frame_payload}
         |> Bunch.Struct.put_in([:metadata, :timestamp], timestamp)
       end) ++ [buffer]
 
