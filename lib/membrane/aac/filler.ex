@@ -4,12 +4,17 @@ defmodule Membrane.AAC.Filler do
   """
   use Membrane.Filter
   alias Membrane.{Buffer, Time}
+  import Membrane.Caps.Matcher, only: [one_of: 1]
 
-  @silent_frame <<222, 2, 0, 76, 97, 118, 99, 53, 56, 46, 53, 52, 46, 49, 48, 48, 0, 2, 48, 64,
-                  14>>
+  # Silence frame per channel configuration
+  @silent_frames %{
+    1 => <<222, 2, 0, 76, 97, 118, 99, 53, 56, 46, 53, 52, 46, 49, 48, 48, 0, 2, 48, 64, 14>>,
+    2 =>
+      <<255, 241, 80, 128, 3, 223, 252, 222, 2, 0, 76, 97, 118, 99, 53, 56, 46, 57, 49, 46, 49,
+        48, 48, 0, 66, 32, 8, 193, 24, 56>>
+  }
 
-  # TODO Add support for multi channel audio
-  @caps {Membrane.AAC, profile: :LC, channels: 1}
+  @caps {Membrane.AAC, profile: :LC, channels: one_of([1, 2])}
 
   def_input_pad :input, demand_unit: :buffers, caps: @caps
   def_output_pad :output, caps: @caps
@@ -19,21 +24,24 @@ defmodule Membrane.AAC.Filler do
 
     # Membrane normalizes timestamps and stream always starts with timestamp 0.
     @initial_timestamp 0
+    @default_channels 1
 
     @type t :: %__MODULE__{
             frame_duration: Membrane.Time.t(),
+            channels: non_neg_integer(),
             expected_timestamp: non_neg_integer()
           }
 
     @enforce_keys [:frame_duration]
-    defstruct [expected_timestamp: @initial_timestamp] ++ @enforce_keys
+    defstruct [expected_timestamp: @initial_timestamp, channels: @default_channels] ++
+                @enforce_keys
   end
 
   @doc """
   Returns a silent AAC frame that this element uses to fill gaps in the stream.
   """
-  @spec silent_frame() :: binary()
-  def silent_frame, do: @silent_frame
+  @spec silent_frame(integer()) :: binary()
+  def silent_frame(channels), do: Map.fetch!(@silent_frames, channels)
 
   @impl true
   def handle_init(_opts) do
@@ -48,7 +56,7 @@ defmodule Membrane.AAC.Filler do
   @impl true
   def handle_caps(:input, caps, _ctx, state) do
     new_duration = caps.samples_per_frame / caps.sample_rate * Time.second()
-    state = %State{state | frame_duration: new_duration}
+    state = %State{state | frame_duration: new_duration, channels: caps.channels}
     {{:ok, forward: caps}, state}
   end
 
@@ -64,9 +72,11 @@ defmodule Membrane.AAC.Filler do
       Stream.iterate(expected_timestamp, &(&1 + frame_duration))
       |> Enum.take_while(&silent_frame_needed?(&1, current_timestamp, frame_duration))
 
+    silent_frame = Map.fetch!(@silent_frames, state.channels)
+
     buffers =
       Enum.map(silent_frames_timestamps, fn timestamp ->
-        %Buffer{buffer | payload: @silent_frame}
+        %Buffer{buffer | payload: silent_frame}
         |> Bunch.Struct.put_in([:metadata, :timestamp], timestamp)
       end) ++ [buffer]
 
