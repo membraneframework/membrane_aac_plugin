@@ -4,6 +4,8 @@ defmodule Membrane.AAC.FillerTest do
   alias Membrane.Buffer
   alias Membrane.Testing.{Pipeline, Source, Sink}
 
+  @single_channel 1
+
   describe "Filler element" do
     setup _ do
       current_timestamp = 2
@@ -47,7 +49,7 @@ defmodule Membrane.AAC.FillerTest do
       assert Enum.count(silent_frames) == skipped_frames
 
       assert Enum.all?(silent_frames, fn buffer ->
-               assert buffer.payload == Filler.silent_frame()
+               assert buffer.payload == Filler.silent_frame(@single_channel)
              end)
     end
 
@@ -103,7 +105,7 @@ defmodule Membrane.AAC.FillerTest do
           if number in non_empty_timestamps do
             number
           else
-            Filler.silent_frame()
+            Filler.silent_frame(@single_channel)
           end
 
         assert_sink_buffer(pipeline, :sink, %Buffer{payload: received_payload})
@@ -112,6 +114,33 @@ defmodule Membrane.AAC.FillerTest do
 
       assert_end_of_stream(pipeline, :sink)
       refute_sink_buffer(pipeline, :sink, _, 0)
+    end
+
+    test "selects proper silent frame", %{
+      state: state,
+      current_timestamp: current_timestamp
+    } do
+      skipped_frames = 1
+
+      generate_first_silent_frame = fn channels ->
+        state = %{state | channels: channels}
+
+        buffer = %Buffer{
+          metadata: %{timestamp: current_timestamp + skipped_frames},
+          payload: ""
+        }
+
+        {{:ok, buffer: {:output, buffers}}, _state} =
+          Filler.handle_process(:input, buffer, nil, state)
+
+        List.first(buffers) |> Map.fetch!(:payload)
+      end
+
+      channels_cfgs = [1, 2]
+
+      Enum.each(channels_cfgs, fn channels ->
+        assert Filler.silent_frame(channels) == generate_first_silent_frame.(channels)
+      end)
     end
   end
 end
