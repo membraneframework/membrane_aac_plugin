@@ -2,7 +2,7 @@
 
 [![CircleCI](https://circleci.com/gh/membraneframework/membrane_aac_plugin.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane_aac_plugin)
 
-This package provides complimentary elements for AAC.
+This package provides AAC parser and complimentary elements for AAC.
 
 It is a part of [Membrane Multimedia Framework](https://membraneframework.org).
 
