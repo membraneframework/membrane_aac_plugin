@@ -6,7 +6,7 @@ defmodule Membrane.AAC.ParserTest do
 
   test "integration" do
     children = [
-      file: %Membrane.Element.File.Source{location: "test/fixtures/sample.aac"},
+      file: %Membrane.File.Source{location: "test/fixtures/sample.aac"},
       parser: Parser,
       sink: Testing.Sink
     ]
