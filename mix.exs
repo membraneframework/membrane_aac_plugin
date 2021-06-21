@@ -63,8 +63,8 @@ defmodule Membrane.Element.AAC.MixProject do
     [
       {:membrane_core, "~> 0.7.0"},
       {:bunch, "~> 1.0"},
-      {:membrane_aac_format, "~> 0.2.0"},
-      {:membrane_file_plugin, "~> 0.5.0", only: :test},
+      {:membrane_aac_format, "~> 0.3.0"},
+      {:membrane_file_plugin, "~> 0.6.0", only: :test},
       {:crc, "~> 0.10.1"},
 
       # Dev
