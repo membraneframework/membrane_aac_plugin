@@ -42,5 +42,7 @@ defmodule Membrane.AAC.ParserTest do
     assert_end_of_stream(pipeline, :sink)
     refute_sink_caps(pipeline, :sink, _, 0)
     refute_sink_buffer(pipeline, :sink, _, 0)
+
+    Testing.Pipeline.stop_and_terminate(pipeline, blocking?: true)
   end
 end
