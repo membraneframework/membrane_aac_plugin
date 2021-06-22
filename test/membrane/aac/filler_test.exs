@@ -67,8 +67,6 @@ defmodule Membrane.AAC.FillerTest do
           }
         )
 
-      {_data, buffer_generator} = Source.output_from_buffers(buffers)
-
       caps = %Membrane.AAC{
         profile: :LC,
         # Values samples_per_frame and sample_rate are set to constants
@@ -78,20 +76,9 @@ defmodule Membrane.AAC.FillerTest do
         channels: 1
       }
 
-      generator = fn state, size ->
-        {actions, new_state} = buffer_generator.(state, size)
-
-        if Enum.count(state) == Enum.count(non_empty_timestamps) do
-          caps_action = [caps: {:output, caps}]
-          {caps_action ++ actions, new_state}
-        else
-          {actions, new_state}
-        end
-      end
-
       options = %Membrane.Testing.Pipeline.Options{
         elements: [
-          source: %Source{output: {buffers, generator}, caps: caps},
+          source: %Source{output: Source.output_from_buffers(buffers), caps: caps},
           tested_element: Filler,
           sink: %Sink{}
         ]
