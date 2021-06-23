@@ -67,31 +67,18 @@ defmodule Membrane.AAC.FillerTest do
           }
         )
 
-      {_data, buffer_generator} = Source.output_from_buffers(buffers)
-
-      generator = fn state, size ->
-        {actions, new_state} = buffer_generator.(state, size)
-
-        if Enum.count(state) == Enum.count(non_empty_timestamps) do
-          caps = %Membrane.AAC{
-            profile: :LC,
-            # Values samples_per_frame and sample_rate are set to constants
-            # that will result in Filler element state frame_duration field equal 1
-            samples_per_frame: 1,
-            sample_rate: Membrane.Time.second(),
-            channels: 1
-          }
-
-          caps_action = [caps: {:output, caps}]
-          {caps_action ++ actions, new_state}
-        else
-          {actions, new_state}
-        end
-      end
+      caps = %Membrane.AAC{
+        profile: :LC,
+        # Values samples_per_frame and sample_rate are set to constants
+        # that will result in Filler element state frame_duration field equal 1
+        samples_per_frame: 1,
+        sample_rate: Membrane.Time.second(),
+        channels: 1
+      }
 
       options = %Membrane.Testing.Pipeline.Options{
         elements: [
-          source: %Source{output: {buffers, generator}},
+          source: %Source{output: Source.output_from_buffers(buffers), caps: caps},
           tested_element: Filler,
           sink: %Sink{}
         ]
@@ -114,6 +101,8 @@ defmodule Membrane.AAC.FillerTest do
 
       assert_end_of_stream(pipeline, :sink)
       refute_sink_buffer(pipeline, :sink, _, 0)
+
+      Pipeline.stop_and_terminate(pipeline, blocking?: true)
     end
 
     test "selects proper silent frame", %{
