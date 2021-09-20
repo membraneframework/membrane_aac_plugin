@@ -32,7 +32,7 @@ defmodule Membrane.AAC.Parser.Helper do
       {:ok, {:cont, caps ++ buffer, {rest, frame_caps, next_timestamp(timestamp, frame_caps)}}}
     else
       header: :error -> {:error, :adts_header}
-      payload: :no_frame -> {:ok, {:halt, {data, next_timestamp(timestamp, frame_caps)}}}
+      payload: :no_frame -> {:ok, {:halt, {data, timestamp}}}
     end
   end
 
