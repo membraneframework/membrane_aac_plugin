@@ -22,7 +22,7 @@ end
 
 ## Usage example
 
-TODO
+A usage example can be found in [example.exs](example.exs). To try it, simply run `elixir example.exs`.
 
 The docs can be found at [https://hexdocs.pm/membrane_aac_plugin](https://hexdocs.pm/membrane_aac_plugin).
 
