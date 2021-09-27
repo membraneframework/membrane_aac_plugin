@@ -94,7 +94,7 @@ defmodule Membrane.AAC.Parser.Helper do
     end
   end
 
-  defp next_timestamp(timestamp, caps) do
+  def next_timestamp(timestamp, caps) do
     use Ratio
 
     timestamp +
