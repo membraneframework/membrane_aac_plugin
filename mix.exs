@@ -68,6 +68,7 @@ defmodule Membrane.Element.AAC.MixProject do
       {:crc, "~> 0.10.2"},
 
       # Dev
+      {:credo, "~> 1.5"},
       {:ex_doc, "~> 0.21", only: :dev, runtime: false},
       {:dialyxir, "~> 1.0.0", only: :dev, runtime: false}
     ]

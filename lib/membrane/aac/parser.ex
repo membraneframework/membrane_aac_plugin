@@ -10,7 +10,7 @@ defmodule Membrane.AAC.Parser do
   """
   use Membrane.Filter
   alias __MODULE__.Helper
-  alias Membrane.AAC
+  alias Membrane.{Buffer, AAC}
 
   def_input_pad :input, demand_unit: :bytes, caps: :any
   def_output_pad :output, caps: AAC
@@ -61,7 +61,7 @@ defmodule Membrane.AAC.Parser do
   def handle_process(:input, buffer, ctx, state) when state.in_encapsulation == :ADTS do
     %{caps: caps} = ctx.pads.output
     timestamp = Map.get(buffer.metadata, :timestamp, state.timestamp)
-    parse_opts = Map.take(state, [:samples_per_frame, :out_encapsulation])
+    parse_opts = Map.take(state, [:samples_per_frame, :out_encapsulation, :in_encapsulation])
 
     with {:ok, {output, leftover, timestamp}} <-
            Helper.parse_adts(state.leftover <> buffer.payload, caps, timestamp, parse_opts) do
@@ -77,7 +77,11 @@ defmodule Membrane.AAC.Parser do
     # Therefore, we only really add the timestamp
     timestamp = Helper.next_timestamp(state.timestamp, ctx.pads.input.caps)
     metadata = Map.put(buffer.metadata, :timestamp, timestamp)
-    buffer = %{buffer | metadata: metadata}
+
+    buffer =
+      %{buffer | metadata: metadata}
+      |> then(&ensure_out_encapsulation(&1, ctx.pads.input.caps, state))
+
     {{:ok, buffer: {:output, buffer}}, %{state | timestamp: timestamp}}
   end
 
@@ -85,4 +89,11 @@ defmodule Membrane.AAC.Parser do
   def handle_demand(:output, size, :buffers, _ctx, state) do
     {{:ok, demand: {:input, size * 2048}}, state}
   end
+
+  defp ensure_out_encapsulation(%Buffer{} = buffer, %AAC{} = caps, state)
+       when state.in_encapsulation == :none and state.out_encapsulation == :ADTS do
+    %Buffer{buffer | payload: Helper.to_adts(caps, buffer.payload)}
+  end
+
+  defp ensure_out_encapsulation(%Buffer{} = buffer, _caps, _state), do: buffer
 end
