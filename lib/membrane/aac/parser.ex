@@ -2,9 +2,8 @@ defmodule Membrane.AAC.Parser do
   @moduledoc """
   Parser for Advanced Audio Codec.
 
-  Supports both plain and ADTS-encapsulated output (configured by `out_encapsulation`),
-  but currently accepts only ADTS AAC input.
-  Input with encapsulation :none is supported, but correct AAC caps need to be supplied with the stream.
+  Supports both plain and ADTS-encapsulated output (configured by `out_encapsulation`).
+  Input with encapsulation `:none` is supported, but correct AAC caps need to be supplied with the stream.
 
   Adds sample rate based timestamp to metadata if absent.
   """
@@ -41,18 +40,20 @@ defmodule Membrane.AAC.Parser do
   end
 
   @impl true
-  def handle_caps(:input, caps, _ctx, state) when state.in_encapsulation == :none do
-    case caps do
-      %AAC{encapsulation: :none} ->
-        {{:ok, caps: {:output, %{caps | encapsulation: state.out_encapsulation}}}, state}
-
-      _other ->
-        raise(
-          "%AAC{encapsulation: :none} caps are required when declaring in_encapsulation as :none"
-        )
-    end
+  def handle_caps(:input, %AAC{encapsulation: encapsulation} = caps, _ctx, state)
+      when state.in_encapsulation == encapsulation do
+    {{:ok, caps: {:output, %{caps | encapsulation: state.out_encapsulation}}}, state}
   end
 
+  @impl true
+  def handle_caps(:input, %AAC{encapsulation: encapsulation}, _ctx, state)
+      when encapsulation != state.in_encapsulation,
+      do:
+        raise(
+          "%AAC{encapsulation: #{inspect(state.in_encapsulation)}} caps are required when declaring in_encapsulation as #{inspect(state.in_encapsulation)}"
+        )
+
+  @impl true
   def handle_caps(:input, _caps, _ctx, state) do
     {:ok, state}
   end
@@ -72,15 +73,23 @@ defmodule Membrane.AAC.Parser do
     end
   end
 
+  @impl true
   def handle_process(:input, buffer, ctx, state) when state.in_encapsulation == :none do
     # Since there is no ADTS header, there is nothing to parse on the input
     # Therefore, we only really add the timestamp
     timestamp = Helper.next_timestamp(state.timestamp, ctx.pads.input.caps)
     metadata = Map.put(buffer.metadata, :timestamp, timestamp)
 
+    buffer = %{buffer | metadata: metadata}
+
     buffer =
-      %{buffer | metadata: metadata}
-      |> then(&ensure_out_encapsulation(&1, ctx.pads.input.caps, state))
+      case state.out_encapsulation do
+        :ADTS ->
+          %Buffer{buffer | payload: Helper.payload_to_adts(buffer.payload, ctx.pads.input.caps)}
+
+        _other ->
+          buffer
+      end
 
     {{:ok, buffer: {:output, buffer}}, %{state | timestamp: timestamp}}
   end
@@ -89,11 +98,4 @@ defmodule Membrane.AAC.Parser do
   def handle_demand(:output, size, :buffers, _ctx, state) do
     {{:ok, demand: {:input, size * 2048}}, state}
   end
-
-  defp ensure_out_encapsulation(%Buffer{} = buffer, %AAC{} = caps, state)
-       when state.in_encapsulation == :none and state.out_encapsulation == :ADTS do
-    %Buffer{buffer | payload: Helper.to_adts(caps, buffer.payload)}
-  end
-
-  defp ensure_out_encapsulation(%Buffer{} = buffer, _caps, _state), do: buffer
 end

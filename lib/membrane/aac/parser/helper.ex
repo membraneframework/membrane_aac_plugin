@@ -102,8 +102,8 @@ defmodule Membrane.AAC.Parser.Helper do
       Ratio.new(caps.samples_per_frame * caps.frames_per_buffer * Time.second(), caps.sample_rate)
   end
 
-  @spec to_adts(AAC.t(), binary()) :: binary()
-  def to_adts(%AAC{} = caps, payload) do
+  @spec payload_to_adts(binary(), AAC.t()) :: binary()
+  def payload_to_adts(payload, %AAC{} = caps) do
     frame_length = 7 + byte_size(payload)
     freq_index = caps.sample_rate |> AAC.sample_rate_to_sampling_frequency_id()
     channel_config = caps.channels |> AAC.channels_to_channel_config_id()
