@@ -1,7 +1,7 @@
 defmodule Membrane.Element.AAC.MixProject do
   use Mix.Project
 
-  @version "0.7.1"
+  @version "0.8.0"
   @github_url "https://github.com/membraneframework/membrane_aac_plugin"
 
   def project do
