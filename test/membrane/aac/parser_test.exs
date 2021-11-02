@@ -26,13 +26,13 @@ defmodule Membrane.AAC.ParserTest do
              frames_per_buffer: 1,
              mpeg_version: 2,
              profile: :LC,
-             sample_rate: 44100,
+             sample_rate: 44_100,
              samples_per_frame: 1024
            }
 
     output =
       1..432
-      |> Enum.map(fn _ ->
+      |> Enum.map(fn _i ->
         assert_sink_buffer(pipeline, :sink, buffer)
         buffer.payload
       end)

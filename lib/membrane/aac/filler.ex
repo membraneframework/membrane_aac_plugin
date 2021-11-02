@@ -3,8 +3,8 @@ defmodule Membrane.AAC.Filler do
   Element that fills gaps in AAC stream with silent frames.
   """
   use Membrane.Filter
-  alias Membrane.{Buffer, Time}
   import Membrane.Caps.Matcher, only: [one_of: 1]
+  alias Membrane.{Buffer, Time}
 
   # Silence frame per channel configuration
   @silent_frames %{

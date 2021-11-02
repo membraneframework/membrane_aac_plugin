@@ -78,7 +78,7 @@ defmodule Membrane.AAC.Parser.Helper do
   defp extract_frame(data, _adts_size, size, %{out_encapsulation: :ADTS}) do
     case data do
       <<frame::binary-size(size), rest::binary>> -> {:frame, frame, rest}
-      _ -> :no_frame
+      _other -> :no_frame
     end
   end
 
@@ -89,15 +89,59 @@ defmodule Membrane.AAC.Parser.Helper do
       <<_adts::binary-size(adts_size), frame::binary-size(frame_size), rest::binary>> ->
         {:frame, frame, rest}
 
-      _ ->
+      _other ->
         :no_frame
     end
   end
 
-  defp next_timestamp(timestamp, caps) do
+  @spec next_timestamp(any(), AAC.t()) :: AAC.Parser.timestamp_t()
+  def next_timestamp(timestamp, caps) do
     use Ratio
 
     timestamp +
       Ratio.new(caps.samples_per_frame * caps.frames_per_buffer * Time.second(), caps.sample_rate)
+  end
+
+  @spec payload_to_adts(binary(), AAC.t()) :: binary()
+  def payload_to_adts(payload, %AAC{} = caps) do
+    frame_length = 7 + byte_size(payload)
+    freq_index = caps.sample_rate |> AAC.sample_rate_to_sampling_frequency_id()
+    channel_config = caps.channels |> AAC.channels_to_channel_config_id()
+    profile = caps.profile |> AAC.profile_to_aot_id()
+
+    header = <<
+      # sync
+      0xFFF::12,
+      # id
+      0::1,
+      # layer
+      0::2,
+      # protection_absent
+      1::1,
+      # profile
+      profile::2,
+      # sampling frequency index
+      freq_index::4,
+      # private_bit
+      0::1,
+      # channel configuration
+      channel_config::3,
+      # original_copy
+      0::1,
+      # home
+      0::1,
+      # copyright identification bit
+      1::1,
+      # copyright identification start
+      1::1,
+      # aac frame length
+      frame_length::13,
+      # adts buffer fullness (signalling VBR - most decoders don't care anyway)
+      0x7FF::11,
+      # number of raw data blocks in frame - 1
+      0::2
+    >>
+
+    header <> payload
   end
 end
