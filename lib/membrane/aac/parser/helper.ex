@@ -107,7 +107,7 @@ defmodule Membrane.AAC.Parser.Helper do
     frame_length = 7 + byte_size(payload)
     freq_index = caps.sample_rate |> AAC.sample_rate_to_sampling_frequency_id()
     channel_config = caps.channels |> AAC.channels_to_channel_config_id()
-    profile = caps.profile |> AAC.profile_to_aot_id()
+    profile = AAC.profile_to_aot_id(caps.profile) - 1
 
     header = <<
       # sync
