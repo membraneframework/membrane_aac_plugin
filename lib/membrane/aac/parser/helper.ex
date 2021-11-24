@@ -145,11 +145,10 @@ defmodule Membrane.AAC.Parser.Helper do
     header <> payload
   end
 
-  @spec parse_audio_specific_config!(Membrane.RemoteStream.AAC.t()) :: AAC.t()
-  def parse_audio_specific_config!(%Membrane.RemoteStream.AAC{
-        audio_specific_config:
-          <<profile::5, sr_index::4, channel_configuration::4, frame_length_flag::1, _rest::bits>>
-      }),
+  @spec parse_audio_specific_config!(binary()) :: AAC.t()
+  def parse_audio_specific_config!(
+        <<profile::5, sr_index::4, channel_configuration::4, frame_length_flag::1, _rest::bits>>
+      ),
       do: %AAC{
         profile: AAC.aot_id_to_profile(profile),
         mpeg_version: 4,

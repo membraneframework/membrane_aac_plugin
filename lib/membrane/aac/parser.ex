@@ -47,7 +47,7 @@ defmodule Membrane.AAC.Parser do
 
   @impl true
   def handle_caps(:input, %Membrane.RemoteStream.AAC{} = caps, _ctx, state) do
-    caps = Helper.parse_audio_specific_config!(caps)
+    caps = Helper.parse_audio_specific_config!(caps.audio_specific_config)
     {{:ok, caps: {:output, %{caps | encapsulation: state.out_encapsulation}}}, state}
   end
 

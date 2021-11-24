@@ -45,4 +45,31 @@ defmodule Membrane.AAC.ParserTest do
 
     Testing.Pipeline.stop_and_terminate(pipeline, blocking?: true)
   end
+
+  test "correct aac caps are generated in response to RemoteStream.AAC" do
+    {:ok, state} =
+      Parser.handle_init(%Parser{
+        out_encapsulation: :none,
+        in_encapsulation: :none
+      })
+
+    input_caps = %Membrane.RemoteStream.AAC{
+      audio_specific_config: <<
+        ## AAC Low Complexity
+        2::5,
+        ## Sampling frequency index - 44 100 Hz
+        4::4,
+        # Channel configuration - stereo
+        2::4,
+        # frame length - 960 samples
+        0b100
+      >>
+    }
+
+    assert {{:ok, caps: {:output, caps}}, state} =
+             Parser.handle_caps(:input, input_caps, nil, state)
+
+    assert %Membrane.AAC{profile: :LC, sample_rate: 44_100, channels: 2, samples_per_frame: 960} =
+             caps
+  end
 end
