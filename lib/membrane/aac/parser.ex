@@ -46,7 +46,7 @@ defmodule Membrane.AAC.Parser do
   end
 
   @impl true
-  def handle_caps(:input, %Membrane.RemoteStream.AAC{} = caps, _ctx, state) do
+  def handle_caps(:input, %Membrane.AAC.RemoteStream{} = caps, _ctx, state) do
     caps = Helper.parse_audio_specific_config!(caps.audio_specific_config)
     {{:ok, caps: {:output, %{caps | encapsulation: state.out_encapsulation}}}, state}
   end
@@ -70,12 +70,15 @@ defmodule Membrane.AAC.Parser do
     timestamp = Map.get(buffer.metadata, :timestamp, state.timestamp)
     parse_opts = Map.take(state, [:samples_per_frame, :out_encapsulation, :in_encapsulation])
 
-    with {:ok, {output, leftover, timestamp}} <-
-           Helper.parse_adts(state.leftover <> buffer.payload, caps, timestamp, parse_opts) do
-      actions = Enum.map(output, fn {action, value} -> {action, {:output, value}} end)
-      {{:ok, actions ++ [redemand: :output]}, %{state | leftover: leftover, timestamp: timestamp}}
-    else
-      {:error, reason} -> {{:error, reason}, state}
+    case Helper.parse_adts(state.leftover <> buffer.payload, caps, timestamp, parse_opts) do
+      {:ok, {output, leftover, timestamp}} ->
+        actions = Enum.map(output, fn {action, value} -> {action, {:output, value}} end)
+
+        {{:ok, actions ++ [redemand: :output]},
+         %{state | leftover: leftover, timestamp: timestamp}}
+
+      {:error, reason} ->
+        {{:error, reason}, state}
     end
   end
 
