@@ -45,7 +45,7 @@ defmodule Membrane.AAC.ParserTest do
     Testing.Pipeline.stop_and_terminate(pipeline, blocking?: true)
   end
 
-  test "correct aac caps are generated in response to RemoteStream.AAC" do
+  test "correct aac caps are generated in response to Membrane.AAC.RemoteStream caps" do
     {:ok, state} =
       Parser.handle_init(%Parser{
         out_encapsulation: :none,
