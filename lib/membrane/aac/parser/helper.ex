@@ -107,7 +107,7 @@ defmodule Membrane.AAC.Parser.Helper do
     frame_length = 7 + byte_size(payload)
     freq_index = caps.sample_rate |> AAC.sample_rate_to_sampling_frequency_id()
     channel_config = caps.channels |> AAC.channels_to_channel_config_id()
-    profile = caps.profile |> AAC.profile_to_aot_id()
+    profile = AAC.profile_to_aot_id(caps.profile) - 1
 
     header = <<
       # sync
@@ -144,4 +144,17 @@ defmodule Membrane.AAC.Parser.Helper do
 
     header <> payload
   end
+
+  @spec parse_audio_specific_config!(binary()) :: AAC.t()
+  def parse_audio_specific_config!(
+        <<profile::5, sr_index::4, channel_configuration::4, frame_length_flag::1, _rest::bits>>
+      ),
+      do: %AAC{
+        profile: AAC.aot_id_to_profile(profile),
+        mpeg_version: 4,
+        sample_rate: AAC.sampling_frequency_id_to_sample_rate(sr_index),
+        channels: AAC.channel_config_id_to_channels(channel_configuration),
+        encapsulation: :none,
+        samples_per_frame: if(frame_length_flag == 1, do: 1024, else: 960)
+      }
 end

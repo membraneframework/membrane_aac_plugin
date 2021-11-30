@@ -11,7 +11,7 @@ defmodule Membrane.AAC.Parser do
   alias __MODULE__.Helper
   alias Membrane.{Buffer, AAC}
 
-  def_input_pad :input, demand_unit: :bytes, caps: :any
+  def_input_pad :input, demand_unit: :buffers, caps: :any
   def_output_pad :output, caps: AAC
 
   def_options samples_per_frame: [
@@ -46,6 +46,12 @@ defmodule Membrane.AAC.Parser do
   end
 
   @impl true
+  def handle_caps(:input, %Membrane.AAC.RemoteStream{} = caps, _ctx, state) do
+    caps = Helper.parse_audio_specific_config!(caps.audio_specific_config)
+    {{:ok, caps: {:output, %{caps | encapsulation: state.out_encapsulation}}}, state}
+  end
+
+  @impl true
   def handle_caps(:input, %AAC{encapsulation: encapsulation}, _ctx, state)
       when encapsulation != state.in_encapsulation,
       do:
@@ -64,20 +70,21 @@ defmodule Membrane.AAC.Parser do
     timestamp = Map.get(buffer.metadata, :timestamp, state.timestamp)
     parse_opts = Map.take(state, [:samples_per_frame, :out_encapsulation, :in_encapsulation])
 
-    with {:ok, {output, leftover, timestamp}} <-
-           Helper.parse_adts(state.leftover <> buffer.payload, caps, timestamp, parse_opts) do
-      actions = Enum.map(output, fn {action, value} -> {action, {:output, value}} end)
-      {{:ok, actions ++ [redemand: :output]}, %{state | leftover: leftover, timestamp: timestamp}}
-    else
-      {:error, reason} -> {{:error, reason}, state}
+    case Helper.parse_adts(state.leftover <> buffer.payload, caps, timestamp, parse_opts) do
+      {:ok, {output, leftover, timestamp}} ->
+        actions = Enum.map(output, fn {action, value} -> {action, {:output, value}} end)
+
+        {{:ok, actions ++ [redemand: :output]},
+         %{state | leftover: leftover, timestamp: timestamp}}
+
+      {:error, reason} ->
+        {{:error, reason}, state}
     end
   end
 
   @impl true
   def handle_process(:input, buffer, ctx, state) when state.in_encapsulation == :none do
-    # Since there is no ADTS header, there is nothing to parse on the input
-    # Therefore, we only really add the timestamp
-    timestamp = Helper.next_timestamp(state.timestamp, ctx.pads.input.caps)
+    timestamp = Helper.next_timestamp(state.timestamp, ctx.pads.output.caps)
     metadata = Map.put(buffer.metadata, :timestamp, timestamp)
 
     buffer = %{buffer | metadata: metadata}
@@ -85,7 +92,7 @@ defmodule Membrane.AAC.Parser do
     buffer =
       case state.out_encapsulation do
         :ADTS ->
-          %Buffer{buffer | payload: Helper.payload_to_adts(buffer.payload, ctx.pads.input.caps)}
+          %Buffer{buffer | payload: Helper.payload_to_adts(buffer.payload, ctx.pads.output.caps)}
 
         _other ->
           buffer
@@ -96,6 +103,6 @@ defmodule Membrane.AAC.Parser do
 
   @impl true
   def handle_demand(:output, size, :buffers, _ctx, state) do
-    {{:ok, demand: {:input, size * 2048}}, state}
+    {{:ok, demand: {:input, size}}, state}
   end
 end
