@@ -4,6 +4,15 @@ defmodule Membrane.AAC.ParserTest do
   alias Membrane.AAC.Parser
   alias Membrane.Testing
 
+  @expected_timestamps [
+    0,
+    Ratio.new(10_240_000_000, 441),
+    Ratio.new(20_480_000_000, 441),
+    Ratio.new(10_240_000_000, 147),
+    Ratio.new(40_960_000_000, 441),
+    Ratio.new(51_200_000_000, 441)
+  ]
+
   test "integration" do
     children = [
       file: %Membrane.File.Source{location: "test/fixtures/sample.aac"},
@@ -30,12 +39,18 @@ defmodule Membrane.AAC.ParserTest do
              samples_per_frame: 1024
            }
 
-    output =
+    output_buffers =
       1..432
-      |> Enum.map_join(fn _i ->
-        assert_sink_buffer(pipeline, :sink, buffer)
-        buffer.payload
+      |> Enum.map(fn _i ->
+        assert_sink_buffer(pipeline, :sink, %Membrane.Buffer{pts: pts, dts: nil} = buffer)
+        refute is_nil(pts)
+        buffer
       end)
+
+    output = Enum.map_join(output_buffers, & &1.payload)
+
+    assert @expected_timestamps ==
+             Enum.map(output_buffers, & &1.pts) |> Enum.take(length(@expected_timestamps))
 
     assert output == File.read!("test/fixtures/sample.aac")
     assert_end_of_stream(pipeline, :sink)

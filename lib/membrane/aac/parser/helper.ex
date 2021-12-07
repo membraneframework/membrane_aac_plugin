@@ -28,7 +28,7 @@ defmodule Membrane.AAC.Parser.Helper do
           do: adts_size = byte_size(header) + byte_size(crc),
           payload: {:frame, frame, rest} <- extract_frame(data, adts_size, frame_length, options) do
       caps = if caps == frame_caps, do: [], else: [caps: frame_caps]
-      buffer = [buffer: %Buffer{payload: frame, metadata: %{timestamp: timestamp}}]
+      buffer = [buffer: %Buffer{pts: timestamp, payload: frame}]
       {:ok, {:cont, caps ++ buffer, {rest, frame_caps, next_timestamp(timestamp, frame_caps)}}}
     else
       header: :error -> {:error, :adts_header}
