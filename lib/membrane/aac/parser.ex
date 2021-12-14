@@ -85,9 +85,8 @@ defmodule Membrane.AAC.Parser do
   @impl true
   def handle_process(:input, buffer, ctx, state) when state.in_encapsulation == :none do
     timestamp = Helper.next_timestamp(state.timestamp, ctx.pads.output.caps)
-    metadata = Map.put(buffer.metadata, :timestamp, timestamp)
 
-    buffer = %{buffer | metadata: metadata}
+    buffer = %{buffer | pts: timestamp}
 
     buffer =
       case state.out_encapsulation do
