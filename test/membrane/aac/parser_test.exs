@@ -75,9 +75,12 @@ defmodule Membrane.AAC.ParserTest do
         4::4,
         # Channel configuration - stereo
         2::4,
+        # GASpecificConfig
         # frame length - 960 samples
         1::1,
+        # dependsOnCoreCoder
         0::1,
+        # extensionFlag
         0::1
       >>
     }
