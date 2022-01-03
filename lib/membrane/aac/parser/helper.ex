@@ -155,6 +155,6 @@ defmodule Membrane.AAC.Parser.Helper do
         sample_rate: AAC.sampling_frequency_id_to_sample_rate(sr_index),
         channels: AAC.channel_config_id_to_channels(channel_configuration),
         encapsulation: :none,
-        samples_per_frame: if(frame_length_flag == 1, do: 1024, else: 960)
+        samples_per_frame: if(frame_length_flag == 0, do: 1024, else: 960)
       }
 end

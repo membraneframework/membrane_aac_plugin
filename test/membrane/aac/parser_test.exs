@@ -76,7 +76,9 @@ defmodule Membrane.AAC.ParserTest do
         # Channel configuration - stereo
         2::4,
         # frame length - 960 samples
-        0b100
+        1::1,
+        0::1,
+        0::1
       >>
     }
 
