@@ -20,12 +20,9 @@ defmodule Membrane.AAC.ParserTest do
       sink: Testing.Sink
     ]
 
-    assert {:ok, pipeline} =
-             Testing.Pipeline.start_link(%Testing.Pipeline.Options{
-               elements: children
-             })
+    options = [links: Membrane.ParentSpec.link_linear(children)]
+    assert {:ok, pipeline} = Testing.Pipeline.start_link(options)
 
-    :ok = Testing.Pipeline.play(pipeline)
     assert_pipeline_playback_changed(pipeline, _, :playing)
     assert_sink_caps(pipeline, :sink, caps)
 
@@ -57,7 +54,7 @@ defmodule Membrane.AAC.ParserTest do
     refute_sink_caps(pipeline, :sink, _, 0)
     refute_sink_buffer(pipeline, :sink, _, 0)
 
-    Testing.Pipeline.stop_and_terminate(pipeline, blocking?: true)
+    Testing.Pipeline.terminate(pipeline, blocking?: true)
   end
 
   test "correct aac caps are generated in response to Membrane.AAC.RemoteStream caps" do

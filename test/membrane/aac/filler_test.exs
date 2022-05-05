@@ -76,16 +76,15 @@ defmodule Membrane.AAC.FillerTest do
         channels: 1
       }
 
-      options = %Membrane.Testing.Pipeline.Options{
-        elements: [
-          source: %Source{output: Source.output_from_buffers(buffers), caps: caps},
-          tested_element: Filler,
-          sink: %Sink{}
-        ]
-      }
+      children = [
+        source: %Source{output: Source.output_from_buffers(buffers), caps: caps},
+        tested_element: Filler,
+        sink: %Sink{}
+      ]
+
+      options = [links: Membrane.ParentSpec.link_linear(children)]
 
       {:ok, pipeline} = Pipeline.start_link(options)
-      Pipeline.play(pipeline)
 
       for number <- List.first(non_empty_timestamps)..List.last(non_empty_timestamps) do
         expected_payload =
@@ -102,7 +101,7 @@ defmodule Membrane.AAC.FillerTest do
       assert_end_of_stream(pipeline, :sink)
       refute_sink_buffer(pipeline, :sink, _, 0)
 
-      Pipeline.stop_and_terminate(pipeline, blocking?: true)
+      Pipeline.terminate(pipeline, blocking?: true)
     end
 
     test "selects proper silent frame", %{

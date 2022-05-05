@@ -1,7 +1,7 @@
 defmodule Membrane.Element.AAC.MixProject do
   use Mix.Project
 
-  @version "0.11.1"
+  @version "0.12.0"
   @github_url "https://github.com/membraneframework/membrane_aac_plugin"
 
   def project do
@@ -51,7 +51,7 @@ defmodule Membrane.Element.AAC.MixProject do
   defp package do
     [
       maintainers: ["Membrane Team"],
-      licenses: ["Apache 2.0"],
+      licenses: ["Apache-2.0"],
       links: %{
         "GitHub" => @github_url,
         "Membrane Framework Homepage" => "https://membraneframework.org"
@@ -61,10 +61,10 @@ defmodule Membrane.Element.AAC.MixProject do
 
   defp deps do
     [
-      {:membrane_core, "~> 0.8.0"},
+      {:membrane_core, "~> 0.10.0"},
       {:bunch, "~> 1.0"},
-      {:membrane_aac_format, "~> 0.6.0"},
-      {:membrane_file_plugin, "~> 0.7.0", only: :test},
+      {:membrane_aac_format, "~> 0.7.0"},
+      {:membrane_file_plugin, "~> 0.12.0", only: :test},
       {:crc, "~> 0.10.2"},
 
       # Dev
