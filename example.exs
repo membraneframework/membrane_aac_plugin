@@ -23,7 +23,7 @@ defmodule Example do
       parser: %AAC.Parser{out_encapsulation: :none},
       filler: AAC.Filler,
       payloader: MP4.Payloader.AAC,
-      muxer: MP4.Muxer,
+      muxer: MP4.Muxer.ISOM,
       sink: %File.Sink{location: "out.mp4"}
     ]
 
@@ -36,17 +36,26 @@ defmodule Example do
       |> to(:sink)
     ]
 
-    {{:ok, spec: %ParentSpec{children: children, links: links}}, %{}}
+    {{:ok, spec: %ParentSpec{children: children, links: links}, playback: :play}, %{}}
+  end
+
+  # When end of stream arrives, kill the pipeline
+  @impl
+  def handle_element_end_of_stream({:sink, _pad}, _ctx, state) do
+    __MODULE__.terminate(self())
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_element_end_of_stream(_element, _ctx, state) do
+    {:ok, state}
   end
 end
 
-ref =
-  Example.start_link()
-  |> elem(1)
-  |> tap(&Membrane.Pipeline.play/1)
-  |> then(&Process.monitor/1)
+{:ok, pid} = Example.start_link()
+monitor_ref = Process.monitor(pid)
 
 receive do
-  {:DOWN, ^ref, :process, _pid, _reason} ->
+  {:DOWN, ^monitor_ref, :process, _pid, _reason} ->
     :ok
 end
