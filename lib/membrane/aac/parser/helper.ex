@@ -40,8 +40,8 @@ defmodule Membrane.AAC.Parser.Helper do
 
   defp parse_header(
          <<0xFFF::12, _version::1, 0::2, protection_absent::1, profile_id::2,
-           sampling_frequency_id::4, _priv_bit::1, channel_config_id::3, _::4, frame_length::13,
-           _buffer_fullness::11, aac_frames_cnt::2, rest::binary>> = data,
+           sampling_frequency_id::4, _priv_bit::1, channel_config_id::3, _bitrate::4,
+           frame_length::13, _buffer_fullness::11, aac_frames_cnt::2, rest::binary>> = data,
          options
        )
        when sampling_frequency_id <= 12 do

@@ -2,7 +2,7 @@ defmodule Membrane.AAC.FillerTest do
   use ExUnit.Case
   alias Membrane.AAC.Filler
   alias Membrane.Buffer
-  alias Membrane.Testing.{Pipeline, Source, Sink}
+  alias Membrane.Testing.{Pipeline, Sink, Source}
 
   @single_channel 1
 
