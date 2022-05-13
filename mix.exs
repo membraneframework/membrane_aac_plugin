@@ -8,7 +8,7 @@ defmodule Membrane.Element.AAC.MixProject do
     [
       app: :membrane_aac_plugin,
       version: @version,
-      elixir: "~> 1.9",
+      elixir: "~> 1.12",
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
 
@@ -20,14 +20,8 @@ defmodule Membrane.Element.AAC.MixProject do
       name: "Membrane AAC plugin",
       source_url: @github_url,
       homepage_url: "https://membraneframework.org",
-      test_coverage: [tool: ExCoveralls],
-      preferred_cli_env: [
-        coveralls: :test,
-        "coveralls.detail": :test,
-        "coveralls.post": :test,
-        "coveralls.html": :test
-      ],
-      docs: docs()
+      docs: docs(),
+      dialyzer: dialyzer()
     ]
   end
 
@@ -44,7 +38,8 @@ defmodule Membrane.Element.AAC.MixProject do
     [
       main: "readme",
       extras: ["README.md", "LICENSE"],
-      source_ref: "v#{@version}"
+      source_ref: "v#{@version}",
+      formatters: ["html"]
     ]
   end
 
@@ -68,9 +63,22 @@ defmodule Membrane.Element.AAC.MixProject do
       {:crc, "~> 0.10.2"},
 
       # Dev
-      {:credo, "~> 1.5"},
-      {:ex_doc, "~> 0.21", only: :dev, runtime: false},
-      {:dialyxir, "~> 1.0.0", only: :dev, runtime: false}
+      {:credo, ">= 0.0.0", only: :dev, runtime: false},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:dialyxir, ">= 0.0.0", only: :dev, runtime: false}
     ]
+  end
+
+  defp dialyzer() do
+    opts = [
+      flags: [:error_handling]
+    ]
+
+    if System.get_env("CI") == "true" do
+      # Store PLTs in cacheable directory for CI
+      [plt_local_path: "priv/plts", plt_core_path: "priv/plts"] ++ opts
+    else
+      opts
+    end
   end
 end

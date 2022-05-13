@@ -9,7 +9,7 @@ defmodule Membrane.AAC.Parser do
   """
   use Membrane.Filter
   alias __MODULE__.Helper
-  alias Membrane.{Buffer, AAC}
+  alias Membrane.{AAC, Buffer}
 
   def_input_pad :input, demand_unit: :buffers, caps: :any
   def_output_pad :output, caps: AAC
