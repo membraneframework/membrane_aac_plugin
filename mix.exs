@@ -8,7 +8,7 @@ defmodule Membrane.Element.AAC.MixProject do
     [
       app: :membrane_aac_plugin,
       version: @version,
-      elixir: "~> 1.9",
+      elixir: "~> 1.12",
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
 
@@ -38,7 +38,8 @@ defmodule Membrane.Element.AAC.MixProject do
     [
       main: "readme",
       extras: ["README.md", "LICENSE"],
-      source_ref: "v#{@version}"
+      source_ref: "v#{@version}",
+      formatters: ["html"]
     ]
   end
 
