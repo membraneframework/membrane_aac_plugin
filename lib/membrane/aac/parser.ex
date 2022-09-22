@@ -5,7 +5,7 @@ defmodule Membrane.AAC.Parser do
   Supports both plain and ADTS-encapsulated output (configured by `out_encapsulation`).
   Input with encapsulation `:none` is supported, but correct AAC caps need to be supplied with the stream.
 
-  Puts sample rate based PTS into buffer if absent.
+  If PTS is absent, it calculates and puts one based on the sample rate.
   """
   use Membrane.Filter
   alias __MODULE__.Helper
