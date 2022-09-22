@@ -5,7 +5,7 @@ defmodule Membrane.AAC.Parser do
   Supports both plain and ADTS-encapsulated output (configured by `out_encapsulation`).
   Input with encapsulation `:none` is supported, but correct AAC caps need to be supplied with the stream.
 
-  Adds sample rate based timestamp to metadata if absent.
+  If PTS is absent, it calculates and puts one based on the sample rate.
   """
   use Membrane.Filter
   alias __MODULE__.Helper
@@ -67,7 +67,7 @@ defmodule Membrane.AAC.Parser do
   @impl true
   def handle_process(:input, buffer, ctx, state) when state.in_encapsulation == :ADTS do
     %{caps: caps} = ctx.pads.output
-    timestamp = Map.get(buffer.metadata, :timestamp, state.timestamp)
+    timestamp = buffer.pts || state.timestamp
     parse_opts = Map.take(state, [:samples_per_frame, :out_encapsulation, :in_encapsulation])
 
     case Helper.parse_adts(state.leftover <> buffer.payload, caps, timestamp, parse_opts) do
@@ -84,7 +84,7 @@ defmodule Membrane.AAC.Parser do
 
   @impl true
   def handle_process(:input, buffer, ctx, state) when state.in_encapsulation == :none do
-    timestamp = Helper.next_timestamp(state.timestamp, ctx.pads.output.caps)
+    timestamp = buffer.pts || Helper.next_timestamp(state.timestamp, ctx.pads.output.caps)
 
     buffer = %{buffer | pts: timestamp}
 
