@@ -3,7 +3,7 @@ defmodule Membrane.AAC.Parser do
   Parser for Advanced Audio Codec.
 
   Supports both plain and ADTS-encapsulated output (configured by `out_encapsulation`).
-  Input with encapsulation `:none` is supported, but correct AAC caps need to be supplied with the stream.
+  Input with encapsulation `:none` is supported, but correct AAC stream format needs to be supplied with the stream.
 
   If PTS is absent, it calculates and puts one based on the sample rate.
   """
@@ -11,8 +11,8 @@ defmodule Membrane.AAC.Parser do
   alias __MODULE__.Helper
   alias Membrane.{AAC, Buffer}
 
-  def_input_pad :input, demand_unit: :buffers, caps: :any
-  def_output_pad :output, caps: AAC
+  def_input_pad :input, demand_unit: :buffers, accepted_format: _any
+  def_output_pad :output, accepted_format: AAC
 
   def_options samples_per_frame: [
                 spec: AAC.samples_per_frame_t(),
@@ -34,74 +34,82 @@ defmodule Membrane.AAC.Parser do
   @type timestamp_t :: Ratio.t() | Membrane.Time.t()
 
   @impl true
-  def handle_init(options) do
+  def handle_init(_ctx, options) do
     state = options |> Map.from_struct() |> Map.merge(%{leftover: <<>>, timestamp: 0})
-    {:ok, state}
+    {[], state}
   end
 
   @impl true
-  def handle_caps(:input, %AAC{encapsulation: encapsulation} = caps, _ctx, state)
-      when state.in_encapsulation == encapsulation do
-    {{:ok, caps: {:output, %{caps | encapsulation: state.out_encapsulation}}}, state}
+  def handle_stream_format(
+        :input,
+        %AAC{encapsulation: encapsulation} = stream_format,
+        _ctx,
+        %{in_encapsulation: encapsulation} = state
+      ) do
+    {[stream_format: {:output, %{stream_format | encapsulation: state.out_encapsulation}}], state}
   end
 
   @impl true
-  def handle_caps(:input, %Membrane.AAC.RemoteStream{} = caps, _ctx, state) do
-    caps = Helper.parse_audio_specific_config!(caps.audio_specific_config)
-    {{:ok, caps: {:output, %{caps | encapsulation: state.out_encapsulation}}}, state}
+  def handle_stream_format(:input, %AAC{} = stream_format, _ctx, state),
+    do:
+      raise("""
+      %AAC{encapsulation: #{inspect(state.in_encapsulation)}} stream format is required when declaring in_encapsulation
+      as #{inspect(state.in_encapsulation)}. Got %AAC{encapsulation: #{inspect(stream_format.encapsulation)}}).
+      """)
+
+  @impl true
+  def handle_stream_format(:input, %AAC.RemoteStream{} = stream_format, _ctx, state) do
+    stream_format = Helper.parse_audio_specific_config!(stream_format.audio_specific_config)
+
+    {[stream_format: {:output, %{stream_format | encapsulation: state.out_encapsulation}}], state}
   end
 
   @impl true
-  def handle_caps(:input, %AAC{encapsulation: encapsulation}, _ctx, state)
-      when encapsulation != state.in_encapsulation,
-      do:
-        raise(
-          "%AAC{encapsulation: #{inspect(state.in_encapsulation)}} caps are required when declaring in_encapsulation as #{inspect(state.in_encapsulation)}"
-        )
-
-  @impl true
-  def handle_caps(:input, _caps, _ctx, state) do
-    {:ok, state}
+  def handle_stream_format(:input, _stream_format, _ctx, state) do
+    {[], state}
   end
 
   @impl true
-  def handle_process(:input, buffer, ctx, state) when state.in_encapsulation == :ADTS do
-    %{caps: caps} = ctx.pads.output
+  def handle_process(:input, buffer, ctx, %{in_encapsulation: :ADTS} = state) do
+    %{stream_format: stream_format} = ctx.pads.output
     timestamp = buffer.pts || state.timestamp
     parse_opts = Map.take(state, [:samples_per_frame, :out_encapsulation, :in_encapsulation])
 
-    case Helper.parse_adts(state.leftover <> buffer.payload, caps, timestamp, parse_opts) do
+    case Helper.parse_adts(state.leftover <> buffer.payload, stream_format, timestamp, parse_opts) do
       {:ok, {output, leftover, timestamp}} ->
         actions = Enum.map(output, fn {action, value} -> {action, {:output, value}} end)
 
-        {{:ok, actions ++ [redemand: :output]},
-         %{state | leftover: leftover, timestamp: timestamp}}
+        {actions ++ [redemand: :output], %{state | leftover: leftover, timestamp: timestamp}}
 
       {:error, reason} ->
-        {{:error, reason}, state}
+        raise "Could not parse incoming buffer due to #{inspect(reason)}"
     end
   end
 
   @impl true
-  def handle_process(:input, buffer, ctx, state) when state.in_encapsulation == :none do
-    timestamp = buffer.pts || Helper.next_timestamp(state.timestamp, ctx.pads.output.caps)
+  def handle_process(:input, buffer, ctx, %{in_encapsulation: :none} = state) do
+    timestamp =
+      buffer.pts || Helper.next_timestamp(state.timestamp, ctx.pads.output.stream_format)
 
     buffer = %{buffer | pts: timestamp}
 
     buffer =
       case state.out_encapsulation do
         :ADTS ->
-          %Buffer{buffer | payload: Helper.payload_to_adts(buffer.payload, ctx.pads.output.caps)}
+          %Buffer{
+            buffer
+            | payload: Helper.payload_to_adts(buffer.payload, ctx.pads.output.stream_format)
+          }
 
         _other ->
           buffer
       end
 
-    {{:ok, buffer: {:output, buffer}}, %{state | timestamp: timestamp}}
+    {[buffer: {:output, buffer}], %{state | timestamp: timestamp}}
   end
 
   @impl true
   def handle_demand(:output, size, :buffers, _ctx, state) do
-    {{:ok, demand: {:input, size}}, state}
+    {[demand: {:input, size}], state}
   end
 end
