@@ -1,5 +1,7 @@
-# Membrane Multimedia Framework: AAC plugin
+# Membrane AAC plugin
 
+[![Hex.pm](https://img.shields.io/hexpm/v/membrane_aac_plugin.svg)](https://hex.pm/packages/membrane_aac_plugin)
+[![API Docs](https://img.shields.io/badge/api-docs-yellow.svg?style=flat)](https://hexdocs.pm/membrane_aac_plugin)
 [![CircleCI](https://circleci.com/gh/membraneframework/membrane_aac_plugin.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane_aac_plugin)
 
 This package provides AAC parser and complimentary elements for AAC.
@@ -22,7 +24,7 @@ end
 
 TODO
 
-The docs can be found at [https://hexdocs.pm/membrane_aac_plugin](https://hexdocs.pm/membrane_aac_plugin).
+The docs can be found at [Hex Docs](https://hexdocs.pm/membrane_aac_plugin).
 
 ## Copyright and License
 

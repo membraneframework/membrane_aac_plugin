@@ -11,6 +11,7 @@ defmodule Membrane.Element.AAC.MixProject do
       elixir: "~> 1.12",
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
+      dialyzer: dialyzer(),
 
       # hex
       description: "Membrane Multimedia Framework plugin for AAC",
@@ -20,8 +21,7 @@ defmodule Membrane.Element.AAC.MixProject do
       name: "Membrane AAC plugin",
       source_url: @github_url,
       homepage_url: "https://membraneframework.org",
-      docs: docs(),
-      dialyzer: dialyzer()
+      docs: docs()
     ]
   end
 
@@ -39,7 +39,8 @@ defmodule Membrane.Element.AAC.MixProject do
       main: "readme",
       extras: ["README.md", "LICENSE"],
       source_ref: "v#{@version}",
-      formatters: ["html"]
+      formatters: ["html"],
+      nest_modules_by_prefix: [Membrane.AAC]
     ]
   end
 
