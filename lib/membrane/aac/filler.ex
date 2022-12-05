@@ -3,7 +3,6 @@ defmodule Membrane.AAC.Filler do
   Element that fills gaps in AAC stream with silent frames.
   """
   use Membrane.Filter
-  import Membrane.Caps.Matcher, only: [one_of: 1]
   alias Membrane.{Buffer, Time}
 
   # Silence frame per channel configuration
@@ -14,10 +13,12 @@ defmodule Membrane.AAC.Filler do
         48, 48, 0, 66, 32, 8, 193, 24, 56>>
   }
 
-  @caps {Membrane.AAC, profile: :LC, channels: one_of([1, 2])}
+  @accepted_format quote(
+                     do: %Membrane.AAC{profile: :LC, channels: channels} when channels in [1, 2]
+                   )
 
-  def_input_pad :input, demand_unit: :buffers, caps: @caps
-  def_output_pad :output, caps: @caps
+  def_input_pad :input, demand_unit: :buffers, accepted_format: unquote(@accepted_format)
+  def_output_pad :output, accepted_format: unquote(@accepted_format)
 
   defmodule State do
     @moduledoc false
@@ -44,20 +45,21 @@ defmodule Membrane.AAC.Filler do
   def silent_frame(channels), do: Map.fetch!(@silent_frames, channels)
 
   @impl true
-  def handle_init(_opts) do
-    {:ok, %State{frame_duration: nil}}
+  def handle_init(_ctx, _opts) do
+    {[], %State{frame_duration: nil}}
   end
 
   @impl true
   def handle_demand(:output, size, :buffers, _ctx, state) do
-    {{:ok, demand: {:input, size}}, state}
+    {[demand: {:input, size}], state}
   end
 
   @impl true
-  def handle_caps(:input, caps, _ctx, state) do
-    new_duration = caps.samples_per_frame / caps.sample_rate * Time.second()
-    state = %State{state | frame_duration: new_duration, channels: caps.channels}
-    {{:ok, forward: caps}, state}
+  def handle_stream_format(:input, stream_format, _ctx, state) do
+    new_duration = stream_format.samples_per_frame / stream_format.sample_rate * Time.second()
+    state = %State{state | frame_duration: new_duration, channels: stream_format.channels}
+
+    {[forward: stream_format], state}
   end
 
   @impl true
@@ -82,7 +84,7 @@ defmodule Membrane.AAC.Filler do
 
     expected_timestamp = expected_timestamp + length(buffers) * frame_duration
 
-    {{:ok, buffer: {:output, buffers}}, %{state | expected_timestamp: expected_timestamp}}
+    {[buffer: {:output, buffers}], %{state | expected_timestamp: expected_timestamp}}
   end
 
   defp silent_frame_needed?(expected_timestamp, current_timestamp, frame_duration) do

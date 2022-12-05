@@ -2,7 +2,7 @@ defmodule Membrane.AAC.FillerTest do
   use ExUnit.Case
   alias Membrane.AAC.Filler
   alias Membrane.Buffer
-  alias Membrane.Testing.{Pipeline, Sink, Source}
+  alias Membrane.Testing
 
   @single_channel 1
 
@@ -19,8 +19,7 @@ defmodule Membrane.AAC.FillerTest do
     } do
       current_buffer = %Buffer{metadata: %{timestamp: current_timestamp}, payload: ""}
 
-      assert {{:ok, actions}, new_state} =
-               Filler.handle_process(:input, current_buffer, nil, state)
+      assert {actions, new_state} = Filler.handle_process(:input, current_buffer, nil, state)
 
       assert actions == [buffer: {:output, [current_buffer]}]
       # No silent frames increment by 1
@@ -38,7 +37,7 @@ defmodule Membrane.AAC.FillerTest do
         payload: ""
       }
 
-      assert {{:ok, buffer: {:output, buffers}}, new_state} =
+      assert {[buffer: {:output, buffers}], new_state} =
                Filler.handle_process(:input, current_buffer, nil, state)
 
       assert new_state.expected_timestamp ==
@@ -67,7 +66,7 @@ defmodule Membrane.AAC.FillerTest do
           }
         )
 
-      caps = %Membrane.AAC{
+      stream_format = %Membrane.AAC{
         profile: :LC,
         # Values samples_per_frame and sample_rate are set to constants
         # that will result in Filler element state frame_duration field equal 1
@@ -76,15 +75,18 @@ defmodule Membrane.AAC.FillerTest do
         channels: 1
       }
 
-      children = [
-        source: %Source{output: Source.output_from_buffers(buffers), caps: caps},
-        tested_element: Filler,
-        sink: %Sink{}
-      ]
+      import Membrane.ChildrenSpec
 
-      options = [links: Membrane.ParentSpec.link_linear(children)]
-
-      {:ok, pipeline} = Pipeline.start_link(options)
+      pipeline =
+        Testing.Pipeline.start_link_supervised!(
+          structure:
+            child(:source, %Testing.Source{
+              output: Testing.Source.output_from_buffers(buffers),
+              stream_format: stream_format
+            })
+            |> child(:filler, Filler)
+            |> child(:sink, Testing.Sink)
+        )
 
       for number <- List.first(non_empty_timestamps)..List.last(non_empty_timestamps) do
         expected_payload =
@@ -101,7 +103,7 @@ defmodule Membrane.AAC.FillerTest do
       assert_end_of_stream(pipeline, :sink)
       refute_sink_buffer(pipeline, :sink, _, 0)
 
-      Pipeline.terminate(pipeline, blocking?: true)
+      Testing.Pipeline.terminate(pipeline, blocking?: true)
     end
 
     test "selects proper silent frame", %{
@@ -118,8 +120,7 @@ defmodule Membrane.AAC.FillerTest do
           payload: ""
         }
 
-        {{:ok, buffer: {:output, buffers}}, _state} =
-          Filler.handle_process(:input, buffer, nil, state)
+        {[buffer: {:output, buffers}], _state} = Filler.handle_process(:input, buffer, nil, state)
 
         List.first(buffers) |> Map.fetch!(:payload)
       end

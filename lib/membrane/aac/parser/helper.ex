@@ -12,31 +12,41 @@ defmodule Membrane.AAC.Parser.Helper do
           samples_per_frame: AAC.samples_per_frame_t(),
           encapsulation: AAC.encapsulation_t()
         }) ::
-          {:ok, {[{:caps, AAC.t()} | {:buffer, Buffer.t()}], binary, AAC.Parser.timestamp_t()}}
-          | {:error, :adts_header}
-  def parse_adts(data, caps, timestamp, options) do
+          {:ok,
+           {[{:stream_format, AAC.t()} | {:buffer, Buffer.t()}], binary, AAC.Parser.timestamp_t()}}
+          | {:error, :invalid_adts_header}
+  def parse_adts(data, stream_format, timestamp, options) do
     with {:ok, {output, {rest, timestamp}}} <-
-           Bunch.List.try_unfoldr({data, caps, timestamp}, &do_parse_adts(&1, options)) do
+           Bunch.List.try_unfoldr({data, stream_format, timestamp}, &do_parse_adts(&1, options)) do
       {:ok, {List.flatten(output), rest, timestamp}}
     end
   end
 
-  defp do_parse_adts({data, caps, timestamp}, options)
+  defp do_parse_adts({data, stream_format, timestamp}, options)
        when byte_size(data) > @header_size + @crc_size do
-    withl header: {:ok, frame_caps, header, crc, frame_length} <- parse_header(data, options),
+    withl header:
+            {:ok, frame_stream_format, header, crc, frame_length} <- parse_header(data, options),
           header: :ok <- verify_header(header, crc),
           do: adts_size = byte_size(header) + byte_size(crc),
           payload: {:frame, frame, rest} <- extract_frame(data, adts_size, frame_length, options) do
-      caps = if caps == frame_caps, do: [], else: [caps: frame_caps]
+      stream_format =
+        if stream_format == frame_stream_format,
+          do: [],
+          else: [stream_format: frame_stream_format]
+
       buffer = [buffer: %Buffer{pts: timestamp, payload: frame}]
-      {:ok, {:cont, caps ++ buffer, {rest, frame_caps, next_timestamp(timestamp, frame_caps)}}}
+
+      {:ok,
+       {:cont, stream_format ++ buffer,
+        {rest, frame_stream_format, next_timestamp(timestamp, frame_stream_format)}}}
     else
-      header: :error -> {:error, :adts_header}
+      header: :error -> {:error, :invalid_adts_header}
       payload: :no_frame -> {:ok, {:halt, {data, timestamp}}}
     end
   end
 
-  defp do_parse_adts({data, _caps, timestamp}, _options), do: {:ok, {:halt, {data, timestamp}}}
+  defp do_parse_adts({data, _stream_format, timestamp}, _options),
+    do: {:ok, {:halt, {data, timestamp}}}
 
   defp parse_header(
          <<0xFFF::12, _version::1, 0::2, protection_absent::1, profile_id::2,
@@ -55,7 +65,7 @@ defmodule Membrane.AAC.Parser.Helper do
         crc
       end
 
-    caps = %AAC{
+    stream_format = %AAC{
       profile: AAC.aot_id_to_profile(profile_id + 1),
       sample_rate: AAC.sampling_frequency_id_to_sample_rate(sampling_frequency_id),
       channels: AAC.channel_config_id_to_channels(channel_config_id),
@@ -64,7 +74,7 @@ defmodule Membrane.AAC.Parser.Helper do
       encapsulation: options.out_encapsulation
     }
 
-    {:ok, caps, header, crc, frame_length}
+    {:ok, stream_format, header, crc, frame_length}
   end
 
   defp parse_header(_payload, _options), do: :error
@@ -95,19 +105,22 @@ defmodule Membrane.AAC.Parser.Helper do
   end
 
   @spec next_timestamp(any(), AAC.t()) :: AAC.Parser.timestamp_t()
-  def next_timestamp(timestamp, caps) do
+  def next_timestamp(timestamp, stream_format) do
     use Ratio
 
     timestamp +
-      Ratio.new(caps.samples_per_frame * caps.frames_per_buffer * Time.second(), caps.sample_rate)
+      Ratio.new(
+        stream_format.samples_per_frame * stream_format.frames_per_buffer * Time.second(),
+        stream_format.sample_rate
+      )
   end
 
   @spec payload_to_adts(binary(), AAC.t()) :: binary()
-  def payload_to_adts(payload, %AAC{} = caps) do
+  def payload_to_adts(payload, %AAC{} = stream_format) do
     frame_length = 7 + byte_size(payload)
-    freq_index = caps.sample_rate |> AAC.sample_rate_to_sampling_frequency_id()
-    channel_config = caps.channels |> AAC.channels_to_channel_config_id()
-    profile = AAC.profile_to_aot_id(caps.profile) - 1
+    freq_index = stream_format.sample_rate |> AAC.sample_rate_to_sampling_frequency_id()
+    channel_config = stream_format.channels |> AAC.channels_to_channel_config_id()
+    profile = AAC.profile_to_aot_id(stream_format.profile) - 1
 
     header = <<
       # sync

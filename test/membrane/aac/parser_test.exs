@@ -14,19 +14,20 @@ defmodule Membrane.AAC.ParserTest do
   ]
 
   test "integration" do
-    children = [
-      file: %Membrane.File.Source{location: "test/fixtures/sample.aac"},
-      parser: Parser,
-      sink: Testing.Sink
-    ]
+    import Membrane.ChildrenSpec
 
-    options = [links: Membrane.ParentSpec.link_linear(children)]
-    assert {:ok, pipeline} = Testing.Pipeline.start_link(options)
+    pipeline =
+      Testing.Pipeline.start_link_supervised!(
+        structure:
+          child(:file, %Membrane.File.Source{location: "test/fixtures/sample.aac"})
+          |> child(:parser, Parser)
+          |> child(:sink, Testing.Sink)
+      )
 
-    assert_pipeline_playback_changed(pipeline, _, :playing)
-    assert_sink_caps(pipeline, :sink, caps)
+    assert_pipeline_play(pipeline)
+    assert_sink_stream_format(pipeline, :sink, stream_format)
 
-    assert caps == %Membrane.AAC{
+    assert stream_format == %Membrane.AAC{
              channels: 1,
              encapsulation: :ADTS,
              frames_per_buffer: 1,
@@ -51,20 +52,20 @@ defmodule Membrane.AAC.ParserTest do
 
     assert output == File.read!("test/fixtures/sample.aac")
     assert_end_of_stream(pipeline, :sink)
-    refute_sink_caps(pipeline, :sink, _, 0)
+    refute_sink_stream_format(pipeline, :sink, _, 0)
     refute_sink_buffer(pipeline, :sink, _, 0)
 
     Testing.Pipeline.terminate(pipeline, blocking?: true)
   end
 
-  test "correct aac caps are generated in response to Membrane.AAC.RemoteStream caps" do
-    {:ok, state} =
-      Parser.handle_init(%Parser{
+  test "correct AAC stream format is generated in response to Membrane.AAC.RemoteStream format" do
+    {_actions, state} =
+      Parser.handle_init(nil, %Parser{
         out_encapsulation: :none,
         in_encapsulation: :none
       })
 
-    input_caps = %Membrane.AAC.RemoteStream{
+    input_stream_format = %Membrane.AAC.RemoteStream{
       audio_specific_config: <<
         ## AAC Low Complexity
         2::5,
@@ -82,10 +83,10 @@ defmodule Membrane.AAC.ParserTest do
       >>
     }
 
-    assert {{:ok, caps: {:output, caps}}, _state} =
-             Parser.handle_caps(:input, input_caps, nil, state)
+    assert {[stream_format: {:output, output_stream_format}], _state} =
+             Parser.handle_stream_format(:input, input_stream_format, nil, state)
 
     assert %Membrane.AAC{profile: :LC, sample_rate: 44_100, channels: 2, samples_per_frame: 960} =
-             caps
+             output_stream_format
   end
 end
