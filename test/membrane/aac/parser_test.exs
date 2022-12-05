@@ -27,7 +27,7 @@ defmodule Membrane.AAC.ParserTest do
     assert_pipeline_play(pipeline)
     assert_sink_stream_format(pipeline, :sink, stream_format)
 
-    assert %Membrane.AAC{
+    assert stream_format == %Membrane.AAC{
              channels: 1,
              encapsulation: :ADTS,
              frames_per_buffer: 1,
@@ -35,7 +35,7 @@ defmodule Membrane.AAC.ParserTest do
              profile: :LC,
              sample_rate: 44_100,
              samples_per_frame: 1024
-           } = stream_format
+           }
 
     output_buffers =
       1..432
