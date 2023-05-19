@@ -74,8 +74,6 @@ defmodule Membrane.AAC.Parser do
     end
 
     {[], state}
-
-    # {[stream_format: {:output, %AAC{encapsulation: state.out_encapsulation, profile: 1, channels: 1, sample_rate: state.samples_per_frame}}], state}
   end
 
   @impl true
