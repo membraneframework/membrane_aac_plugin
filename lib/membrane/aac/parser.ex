@@ -11,7 +11,10 @@ defmodule Membrane.AAC.Parser do
   alias __MODULE__.Helper
   alias Membrane.{AAC, Buffer}
 
-  def_input_pad :input, demand_unit: :buffers, accepted_format: _any
+  def_input_pad :input,
+    demand_unit: :buffers,
+    accepted_format: any_of(AAC, AAC.RemoteStream, Membrane.RemoteStream)
+
   def_output_pad :output, accepted_format: AAC
 
   def_options samples_per_frame: [
@@ -65,8 +68,14 @@ defmodule Membrane.AAC.Parser do
   end
 
   @impl true
-  def handle_stream_format(:input, _stream_format, _ctx, state) do
+  def handle_stream_format(:input, %Membrane.RemoteStream{} = _stream_format, _ctx, state) do
+    if state.in_encapsulation == :none and state.out_encapsulation == :ADTS do
+      raise "Not supported parser configuration: in_encapsulation: :none, out_encapsulation: :ADTS"
+    end
+
     {[], state}
+
+    # {[stream_format: {:output, %AAC{encapsulation: state.out_encapsulation, profile: 1, channels: 1, sample_rate: state.samples_per_frame}}], state}
   end
 
   @impl true

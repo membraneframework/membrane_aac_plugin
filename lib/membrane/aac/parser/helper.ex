@@ -8,7 +8,7 @@ defmodule Membrane.AAC.Parser.Helper do
   @header_size 7
   @crc_size 2
 
-  @spec parse_adts(binary, AAC.t(), AAC.Parser.timestamp_t(), %{
+  @spec parse_adts(binary, AAC.t() | nil, AAC.Parser.timestamp_t(), %{
           samples_per_frame: AAC.samples_per_frame_t(),
           encapsulation: AAC.encapsulation_t()
         }) ::
@@ -50,8 +50,9 @@ defmodule Membrane.AAC.Parser.Helper do
 
   defp parse_header(
          <<0xFFF::12, _version::1, 0::2, protection_absent::1, profile_id::2,
-           sampling_frequency_id::4, _priv_bit::1, channel_config_id::3, _bitrate::4,
-           frame_length::13, _buffer_fullness::11, aac_frames_cnt::2, rest::binary>> = data,
+           sampling_frequency_id::4, _priv_bit::1, channel_config_id::3, _originality::1,
+           _home::1, _copyright_id_bit::1, _copyright_id_start::1, frame_length::13,
+           _buffer_fullness::11, aac_frames_cnt::2, rest::binary>> = data,
          options
        )
        when sampling_frequency_id <= 12 do
@@ -144,9 +145,9 @@ defmodule Membrane.AAC.Parser.Helper do
       # home
       0::1,
       # copyright identification bit
-      1::1,
+      0::1,
       # copyright identification start
-      1::1,
+      0::1,
       # aac frame length
       frame_length::13,
       # adts buffer fullness (signalling VBR - most decoders don't care anyway)
