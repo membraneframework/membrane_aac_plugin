@@ -49,7 +49,7 @@ defmodule Membrane.AAC.Parser.Helper do
     do: {:ok, {:halt, {data, timestamp}}}
 
   defp parse_header(
-         <<0xFFF::12, _version::1, 0::2, protection_absent::1, profile_id::2,
+         <<0xFFF::12, _id::1, _layer::2, protection_absent::1, profile_id::2,
            sampling_frequency_id::4, _priv_bit::1, channel_config_id::3, _originality::1,
            _home::1, _copyright_id_bit::1, _copyright_id_start::1, frame_length::13,
            _buffer_fullness::11, aac_frames_cnt::2, rest::binary>> = data,
