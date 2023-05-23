@@ -11,7 +11,10 @@ defmodule Membrane.AAC.Parser do
   alias __MODULE__.Helper
   alias Membrane.{AAC, Buffer}
 
-  def_input_pad :input, demand_unit: :buffers, accepted_format: _any
+  def_input_pad :input,
+    demand_unit: :buffers,
+    accepted_format: any_of(AAC, AAC.RemoteStream, Membrane.RemoteStream)
+
   def_output_pad :output, accepted_format: AAC
 
   def_options samples_per_frame: [
@@ -65,7 +68,20 @@ defmodule Membrane.AAC.Parser do
   end
 
   @impl true
-  def handle_stream_format(:input, _stream_format, _ctx, state) do
+  def handle_stream_format(:input, %Membrane.RemoteStream{} = stream_format, _ctx, state) do
+    if state.in_encapsulation == :none and state.out_encapsulation == :ADTS do
+      raise """
+        Not supported parser configuration
+        for the stream format: #{inspect(stream_format)}:
+        `in_encapsulation: :none`, `out_encapsulation: :ADTS`
+
+        There is no way to fetch metadata required by ADTS encapsulation,
+        such as number of channels or the sampling frequency, directly
+        from the stream with `in_encapsulation: :none`, neither has the metadata
+        been provided in the stream format.
+      """
+    end
+
     {[], state}
   end
 
