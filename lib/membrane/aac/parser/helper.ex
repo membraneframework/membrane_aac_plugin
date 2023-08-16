@@ -8,12 +8,12 @@ defmodule Membrane.AAC.Parser.Helper do
   @header_size 7
   @crc_size 2
 
-  @spec parse_adts(binary, AAC.t() | nil, AAC.Parser.timestamp_t(), %{
-          samples_per_frame: AAC.samples_per_frame_t(),
-          encapsulation: AAC.encapsulation_t()
+  @spec parse_adts(binary, AAC.t() | nil, AAC.Parser.timestamp(), %{
+          samples_per_frame: AAC.samples_per_frame(),
+          encapsulation: AAC.encapsulation()
         }) ::
           {:ok,
-           {[{:stream_format, AAC.t()} | {:buffer, Buffer.t()}], binary, AAC.Parser.timestamp_t()}}
+           {[{:stream_format, AAC.t()} | {:buffer, Buffer.t()}], binary, AAC.Parser.timestamp()}}
           | {:error, :invalid_adts_header}
   def parse_adts(data, stream_format, timestamp, options) do
     with {:ok, {output, {rest, timestamp}}} <-
@@ -105,7 +105,7 @@ defmodule Membrane.AAC.Parser.Helper do
     end
   end
 
-  @spec next_timestamp(any(), AAC.t()) :: AAC.Parser.timestamp_t()
+  @spec next_timestamp(any(), AAC.t()) :: AAC.Parser.timestamp()
   def next_timestamp(timestamp, stream_format) do
     use Ratio
 
@@ -159,8 +159,23 @@ defmodule Membrane.AAC.Parser.Helper do
     header <> payload
   end
 
-  @spec parse_audio_specific_config!(binary()) :: AAC.t()
-  def parse_audio_specific_config!(
+  @spec generate_audio_specifig_config(AAC.t()) :: binary()
+  def generate_audio_specifig_config(stream_format) do
+    aot = AAC.profile_to_aot_id(stream_format.profile)
+    sr_index = AAC.sample_rate_to_sampling_frequency_id(stream_format.sample_rate)
+    channel_configuration = AAC.channels_to_channel_config_id(stream_format.channels)
+
+    frame_length_flag =
+      case stream_format.samples_per_frame do
+        960 -> 1
+        1024 -> 0
+      end
+
+    <<aot::5, sr_index::4, channel_configuration::4, frame_length_flag::1, 0::1, 0::1>>
+  end
+
+  @spec parse_audio_specific_config(binary()) :: AAC.t()
+  def parse_audio_specific_config(
         <<profile::5, sr_index::4, channel_configuration::4, frame_length_flag::1, _rest::bits>>
       ),
       do: %AAC{
@@ -171,4 +186,94 @@ defmodule Membrane.AAC.Parser.Helper do
         encapsulation: :none,
         samples_per_frame: if(frame_length_flag == 0, do: 1024, else: 960)
       }
+
+  @spec parse_esds(binary()) ::
+          %{profile: AAC.profile(), samples_per_frame: AAC.samples_per_frame()}
+  def parse_esds(esds) do
+    stream_priority = 0
+
+    {esds, <<>>} = unpack_esds_section(esds, 3)
+    <<_elementary_stream_id::16, ^stream_priority, rest::binary>> = esds
+
+    {section_4, esds_section_6} = unpack_esds_section(rest, 4)
+    {<<2>>, <<>>} = unpack_esds_section(esds_section_6, 6)
+
+    # 64 = mpeg4-audio
+    object_type_id = 64
+    # 5 = audio
+    stream_type = 5
+    upstream_flag = 0
+    reserved_flag_set_to_1 = 1
+    buffer_size = 0
+
+    <<^object_type_id, ^stream_type::6, ^upstream_flag::1, ^reserved_flag_set_to_1::1,
+      ^buffer_size::24, _max_bit_rate::32, _avg_bit_rate::32, esds_section_5::binary>> = section_4
+
+    {section_5, <<>>} = unpack_esds_section(esds_section_5, 5)
+
+    depends_on_core_coder = 0
+    extension_flag = 0
+
+    <<aot_id::5, _frequency_id::4, _channel_config_id::4, frame_length_id::1,
+      ^depends_on_core_coder::1, ^extension_flag::1>> = section_5
+
+    %{
+      profile: AAC.aot_id_to_profile(aot_id),
+      samples_per_frame: AAC.frame_length_id_to_samples_per_frame(frame_length_id)
+    }
+  end
+
+  defp unpack_esds_section(section, section_no) do
+    type_tag = <<128, 128, 128>>
+
+    <<^section_no::8-integer, ^type_tag::binary-size(3), payload_size::8-integer, rest::binary>> =
+      section
+
+    <<payload::binary-size(payload_size), rest::binary>> = rest
+    {payload, rest}
+  end
+
+  @spec generate_esds(AAC.t(), Membrane.Element.state()) :: binary()
+  def generate_esds(stream_format, state) do
+    aot_id = Membrane.AAC.profile_to_aot_id(stream_format.profile)
+    frequency_id = Membrane.AAC.sample_rate_to_sampling_frequency_id(stream_format.sample_rate)
+    channel_config_id = Membrane.AAC.channels_to_channel_config_id(stream_format.channels)
+
+    frame_length_id =
+      Membrane.AAC.samples_per_frame_to_frame_length_id(stream_format.samples_per_frame)
+
+    depends_on_core_coder = 0
+    extension_flag = 0
+
+    section5 =
+      <<aot_id::5, frequency_id::4, channel_config_id::4, frame_length_id::1,
+        depends_on_core_coder::1, extension_flag::1>>
+      |> generate_esds_section(5)
+
+    # 64 = mpeg4-audio
+    object_type_id = 64
+    # 5 = audio
+    stream_type = 5
+    upstream_flag = 0
+    reserved_flag_set_to_1 = 1
+    buffer_size = 0
+
+    section4 =
+      <<object_type_id, stream_type::6, upstream_flag::1, reserved_flag_set_to_1::1,
+        buffer_size::24, state.max_bit_rate::32, state.avg_bit_rate::32, section5::binary>>
+      |> generate_esds_section(4)
+
+    section6 = <<2>> |> generate_esds_section(6)
+
+    elementary_stream_id = 1
+    stream_priority = 0
+
+    <<elementary_stream_id::16, stream_priority, section4::binary, section6::binary>>
+    |> generate_esds_section(3)
+  end
+
+  defp generate_esds_section(payload, section_no) do
+    type_tag = <<128, 128, 128>>
+    <<section_no, type_tag::binary, byte_size(payload), payload::binary>>
+  end
 end

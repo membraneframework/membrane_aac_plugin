@@ -11,30 +11,51 @@ defmodule Membrane.AAC.Parser do
   alias __MODULE__.Helper
   alias Membrane.{AAC, Buffer}
 
-  def_input_pad :input,
+  def_input_pad(:input,
     demand_unit: :buffers,
     accepted_format: any_of(AAC, AAC.RemoteStream, Membrane.RemoteStream)
+  )
 
-  def_output_pad :output, accepted_format: AAC
+  def_output_pad(:output, accepted_format: AAC)
 
-  def_options samples_per_frame: [
-                spec: AAC.samples_per_frame_t(),
-                default: 1024,
-                description: "Count of audio samples in each AAC frame"
-              ],
-              out_encapsulation: [
-                spec: AAC.encapsulation_t(),
-                default: :ADTS,
-                description: """
-                Determines whether output AAC frames should be prefixed with ADTS headers
-                """
-              ],
-              in_encapsulation: [
-                spec: AAC.encapsulation_t(),
-                default: :ADTS
-              ]
+  def_options(
+    samples_per_frame: [
+      spec: AAC.samples_per_frame(),
+      default: 1024,
+      description: "Count of audio samples in each AAC frame"
+    ],
+    out_encapsulation: [
+      spec: AAC.encapsulation(),
+      default: :ADTS,
+      description: """
+      Determines whether output AAC frames should be prefixed with ADTS headers
+      """
+    ],
+    in_encapsulation: [
+      spec: AAC.encapsulation(),
+      default: :ADTS
+    ],
+    avg_bit_rate: [
+      spec: non_neg_integer(),
+      default: 0,
+      description: "Average stream bitrate. Should be set to 0 if unknown."
+    ],
+    max_bit_rate: [
+      spec: non_neg_integer(),
+      default: 0,
+      description: "Maximum stream bitrate. Should be set to 0 if unknown."
+    ],
+    output_config: [
+      spec: :esds | :audio_specifig_config | nil,
+      default: nil,
+      description: """
+        Determines which config structure will be generated and included in
+        output stream format as `config`.
+      """
+    ]
+  )
 
-  @type timestamp_t :: Ratio.t() | Membrane.Time.t()
+  @type timestamp :: Ratio.t() | Membrane.Time.t()
 
   @impl true
   def handle_init(_ctx, options) do
@@ -43,28 +64,30 @@ defmodule Membrane.AAC.Parser do
   end
 
   @impl true
-  def handle_stream_format(
-        :input,
-        %AAC{encapsulation: encapsulation} = stream_format,
-        _ctx,
-        %{in_encapsulation: encapsulation} = state
-      ) do
-    {[stream_format: {:output, %{stream_format | encapsulation: state.out_encapsulation}}], state}
-  end
+  def handle_stream_format(:input, %AAC{} = stream_format, _ctx, state) do
+    stream_format =
+      case stream_format.config do
+        {:esds, esds} -> Map.merge(stream_format, Helper.parse_esds(esds))
+        {:audio_specific_config, config} -> Helper.parse_audio_specific_config(config)
+        nil -> stream_format
+      end
 
-  @impl true
-  def handle_stream_format(:input, %AAC{} = stream_format, _ctx, state),
-    do:
-      raise("""
-      %AAC{encapsulation: #{inspect(state.in_encapsulation)}} stream format is required when declaring in_encapsulation
-      as #{inspect(state.in_encapsulation)}. Got %AAC{encapsulation: #{inspect(stream_format.encapsulation)}}).
-      """)
+    config =
+      case state.output_config do
+        :esds ->
+          {:esds, Helper.generate_esds(stream_format, state)}
 
-  @impl true
-  def handle_stream_format(:input, %AAC.RemoteStream{} = stream_format, _ctx, state) do
-    stream_format = Helper.parse_audio_specific_config!(stream_format.audio_specific_config)
+        :audio_specifig_config ->
+          {:audio_specifig_config, Helper.generate_audio_specifig_config(stream_format)}
 
-    {[stream_format: {:output, %{stream_format | encapsulation: state.out_encapsulation}}], state}
+        nil ->
+          nil
+      end
+
+    {[
+       stream_format:
+         {:output, %{stream_format | encapsulation: state.out_encapsulation, config: config}}
+     ], state}
   end
 
   @impl true

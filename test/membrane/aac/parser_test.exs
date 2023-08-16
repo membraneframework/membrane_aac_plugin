@@ -65,22 +65,24 @@ defmodule Membrane.AAC.ParserTest do
         in_encapsulation: :none
       })
 
-    input_stream_format = %Membrane.AAC.RemoteStream{
-      audio_specific_config: <<
-        ## AAC Low Complexity
-        2::5,
-        ## Sampling frequency index - 44 100 Hz
-        4::4,
-        # Channel configuration - stereo
-        2::4,
-        # GASpecificConfig
-        # frame length - 960 samples
-        1::1,
-        # dependsOnCoreCoder
-        0::1,
-        # extensionFlag
-        0::1
-      >>
+    input_stream_format = %Membrane.AAC{
+      config:
+        {:audio_specific_config,
+         <<
+           ## AAC Low Complexity
+           2::5,
+           ## Sampling frequency index - 44 100 Hz
+           4::4,
+           # Channel configuration - stereo
+           2::4,
+           # GASpecificConfig
+           # frame length - 960 samples
+           1::1,
+           # dependsOnCoreCoder
+           0::1,
+           # extensionFlag
+           0::1
+         >>}
     }
 
     assert {[stream_format: {:output, output_stream_format}], _state} =
