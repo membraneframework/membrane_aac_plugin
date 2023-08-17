@@ -65,6 +65,13 @@ defmodule Membrane.AAC.Parser do
 
   @impl true
   def handle_stream_format(:input, %AAC{} = stream_format, _ctx, state) do
+    if stream_format.encapsulation != state.in_encapsulation do
+      raise("""
+      %AAC{encapsulation: #{inspect(state.in_encapsulation)}} stream format is required when declaring in_encapsulation
+      as #{inspect(state.in_encapsulation)}. Got %AAC{encapsulation: #{inspect(stream_format.encapsulation)}}).
+      """)
+    end
+
     stream_format =
       case stream_format.config do
         {:esds, esds} -> Map.merge(stream_format, Helper.parse_esds(esds))
