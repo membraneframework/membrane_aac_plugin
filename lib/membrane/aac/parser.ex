@@ -72,17 +72,7 @@ defmodule Membrane.AAC.Parser do
         nil -> stream_format
       end
 
-    config =
-      case state.output_config do
-        :esds ->
-          {:esds, Helper.generate_esds(stream_format, state)}
-
-        :audio_specifig_config ->
-          {:audio_specifig_config, Helper.generate_audio_specifig_config(stream_format)}
-
-        nil ->
-          nil
-      end
+    config = Helper.generate_config(stream_format, state)
 
     {[
        stream_format:
@@ -112,9 +102,8 @@ defmodule Membrane.AAC.Parser do
   def handle_process(:input, buffer, ctx, %{in_encapsulation: :ADTS} = state) do
     %{stream_format: stream_format} = ctx.pads.output
     timestamp = buffer.pts || state.timestamp
-    parse_opts = Map.take(state, [:samples_per_frame, :out_encapsulation, :in_encapsulation])
 
-    case Helper.parse_adts(state.leftover <> buffer.payload, stream_format, timestamp, parse_opts) do
+    case Helper.parse_adts(state.leftover <> buffer.payload, stream_format, timestamp, state) do
       {:ok, {output, leftover, timestamp}} ->
         actions = Enum.map(output, fn {action, value} -> {action, {:output, value}} end)
 

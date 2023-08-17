@@ -8,27 +8,24 @@ defmodule Membrane.AAC.Parser.Helper do
   @header_size 7
   @crc_size 2
 
-  @spec parse_adts(binary, AAC.t() | nil, AAC.Parser.timestamp(), %{
-          samples_per_frame: AAC.samples_per_frame(),
-          encapsulation: AAC.encapsulation()
-        }) ::
+  @spec parse_adts(binary, AAC.t() | nil, AAC.Parser.timestamp(), Membrane.Element.state()) ::
           {:ok,
            {[{:stream_format, AAC.t()} | {:buffer, Buffer.t()}], binary, AAC.Parser.timestamp()}}
           | {:error, :invalid_adts_header}
-  def parse_adts(data, stream_format, timestamp, options) do
+  def parse_adts(data, stream_format, timestamp, state) do
     with {:ok, {output, {rest, timestamp}}} <-
-           Bunch.List.try_unfoldr({data, stream_format, timestamp}, &do_parse_adts(&1, options)) do
+           Bunch.List.try_unfoldr({data, stream_format, timestamp}, &do_parse_adts(&1, state)) do
       {:ok, {List.flatten(output), rest, timestamp}}
     end
   end
 
-  defp do_parse_adts({data, stream_format, timestamp}, options)
+  defp do_parse_adts({data, stream_format, timestamp}, state)
        when byte_size(data) > @header_size + @crc_size do
     withl header:
-            {:ok, frame_stream_format, header, crc, frame_length} <- parse_header(data, options),
+            {:ok, frame_stream_format, header, crc, frame_length} <- parse_header(data, state),
           header: :ok <- verify_header(header, crc),
           do: adts_size = byte_size(header) + byte_size(crc),
-          payload: {:frame, frame, rest} <- extract_frame(data, adts_size, frame_length, options) do
+          payload: {:frame, frame, rest} <- extract_frame(data, adts_size, frame_length, state) do
       stream_format =
         if stream_format == frame_stream_format,
           do: [],
@@ -53,7 +50,7 @@ defmodule Membrane.AAC.Parser.Helper do
            sampling_frequency_id::4, _priv_bit::1, channel_config_id::3, _originality::1,
            _home::1, _copyright_id_bit::1, _copyright_id_start::1, frame_length::13,
            _buffer_fullness::11, aac_frames_cnt::2, rest::binary>> = data,
-         options
+         state
        )
        when sampling_frequency_id <= 12 do
     <<header::binary-size(@header_size), ^rest::binary>> = data
@@ -71,9 +68,11 @@ defmodule Membrane.AAC.Parser.Helper do
       sample_rate: AAC.sampling_frequency_id_to_sample_rate(sampling_frequency_id),
       channels: AAC.channel_config_id_to_channels(channel_config_id),
       frames_per_buffer: aac_frames_cnt + 1,
-      samples_per_frame: options.samples_per_frame,
-      encapsulation: options.out_encapsulation
+      samples_per_frame: state.samples_per_frame,
+      encapsulation: state.out_encapsulation
     }
+
+    stream_format = %{stream_format | config: generate_config(stream_format, state)}
 
     {:ok, stream_format, header, crc, frame_length}
   end
@@ -157,6 +156,20 @@ defmodule Membrane.AAC.Parser.Helper do
     >>
 
     header <> payload
+  end
+
+  @spec generate_config(AAC.t(), Membrane.Element.state()) :: AAC.config() | nil
+  def generate_config(stream_format, state) do
+    case state.output_config do
+      :esds ->
+        {:esds, generate_esds(stream_format, state)}
+
+      :audio_specific_config ->
+        {:audio_specific_config, generate_audio_specifig_config(stream_format)}
+
+      nil ->
+        nil
+    end
   end
 
   @spec generate_audio_specifig_config(AAC.t()) :: binary()
