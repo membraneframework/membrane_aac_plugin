@@ -13,7 +13,7 @@ defmodule Membrane.AAC.Parser do
 
   def_input_pad(:input,
     demand_unit: :buffers,
-    accepted_format: any_of(AAC, AAC.RemoteStream, Membrane.RemoteStream)
+    accepted_format: any_of(AAC, Membrane.RemoteStream)
   )
 
   def_output_pad(:output, accepted_format: AAC)
