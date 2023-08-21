@@ -11,49 +11,47 @@ defmodule Membrane.AAC.Parser do
   alias __MODULE__.Helper
   alias Membrane.{AAC, Buffer}
 
-  def_input_pad(:input,
+  def_input_pad :input,
     demand_unit: :buffers,
     accepted_format: any_of(AAC, Membrane.RemoteStream)
-  )
+  
 
-  def_output_pad(:output, accepted_format: AAC)
+  def_output_pad :output, accepted_format: AAC
 
-  def_options(
-    samples_per_frame: [
-      spec: AAC.samples_per_frame(),
-      default: 1024,
-      description: "Count of audio samples in each AAC frame"
-    ],
-    out_encapsulation: [
-      spec: AAC.encapsulation(),
-      default: :ADTS,
-      description: """
-      Determines whether output AAC frames should be prefixed with ADTS headers
-      """
-    ],
-    in_encapsulation: [
-      spec: AAC.encapsulation(),
-      default: :ADTS
-    ],
-    avg_bit_rate: [
-      spec: non_neg_integer(),
-      default: 0,
-      description: "Average stream bitrate. Should be set to 0 if unknown."
-    ],
-    max_bit_rate: [
-      spec: non_neg_integer(),
-      default: 0,
-      description: "Maximum stream bitrate. Should be set to 0 if unknown."
-    ],
-    output_config: [
-      spec: :esds | :audio_specifig_config | nil,
-      default: nil,
-      description: """
-        Determines which config structure will be generated and included in
-        output stream format as `config`.
-      """
-    ]
-  )
+  def_options samples_per_frame: [
+                spec: AAC.samples_per_frame(),
+                default: 1024,
+                description: "Count of audio samples in each AAC frame"
+              ],
+              out_encapsulation: [
+                spec: AAC.encapsulation(),
+                default: :ADTS,
+                description: """
+                Determines whether output AAC frames should be prefixed with ADTS headers
+                """
+              ],
+              in_encapsulation: [
+                spec: AAC.encapsulation(),
+                default: :ADTS
+              ],
+              avg_bit_rate: [
+                spec: non_neg_integer(),
+                default: 0,
+                description: "Average stream bitrate. Should be set to 0 if unknown."
+              ],
+              max_bit_rate: [
+                spec: non_neg_integer(),
+                default: 0,
+                description: "Maximum stream bitrate. Should be set to 0 if unknown."
+              ],
+              output_config: [
+                spec: :esds | :audio_specifig_config | nil,
+                default: nil,
+                description: """
+                  Determines which config structure will be generated and included in
+                  output stream format as `config`.
+                """
+              ]
 
   @type timestamp :: Ratio.t() | Membrane.Time.t()
 
