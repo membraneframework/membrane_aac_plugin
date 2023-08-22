@@ -7,10 +7,10 @@ defmodule Membrane.AAC.Parser.AudioSpecificConfig do
 
   alias Membrane.AAC
 
-  @spec generate_audio_specific_config(AAC.t()) :: binary()
-  def generate_audio_specific_config(stream_format) do
+  @spec generate_audio_specifig_config(AAC.t()) :: binary()
+  def generate_audio_specifig_config(stream_format) do
     aot = AAC.profile_to_aot_id(stream_format.profile)
-    sr_index = AAC.sample_rate_to_sampling_frequency_id(stream_format.sample_rate)
+    frequency_id = AAC.sample_rate_to_sampling_frequency_id(stream_format.sample_rate)
     channel_configuration = AAC.channels_to_channel_config_id(stream_format.channels)
 
     frame_length_flag =
@@ -19,19 +19,33 @@ defmodule Membrane.AAC.Parser.AudioSpecificConfig do
         1024 -> 0
       end
 
-    <<aot::5, sr_index::4, channel_configuration::4, frame_length_flag::1, 0::1, 0::1>>
+    custom_frequency = if frequency_id == 15, do: <<stream_format.sample_rate::24>>, else: <<>>
+
+    <<aot::5, frequency_id::4, custom_frequency::binary, channel_configuration::4,
+      frame_length_flag::1, 0::1, 0::1>>
   end
 
   @spec parse_audio_specific_config(binary()) :: AAC.t()
-  def parse_audio_specific_config(
-        <<profile::5, sr_index::4, channel_configuration::4, frame_length_flag::1, _rest::bits>>
-      ),
-      do: %AAC{
-        profile: AAC.aot_id_to_profile(profile),
-        mpeg_version: 4,
-        sample_rate: AAC.sampling_frequency_id_to_sample_rate(sr_index),
-        channels: AAC.channel_config_id_to_channels(channel_configuration),
-        encapsulation: :none,
-        samples_per_frame: if(frame_length_flag == 0, do: 1024, else: 960)
-      }
+  def parse_audio_specific_config(audio_specific_config) do
+    <<profile::5, frequency_id::4, audio_specific_config_rest::bitstring>> = audio_specific_config
+
+    custom_frequency_length = if frequency_id == 15, do: 24, else: 0
+
+    <<custom_frequency::integer-size(custom_frequency_length), channel_configuration::4,
+      frame_length_flag::1, _rest::bits>> = audio_specific_config_rest
+
+    sample_rate =
+      if frequency_id == 15,
+        do: custom_frequency,
+        else: AAC.sampling_frequency_id_to_sample_rate(frequency_id)
+
+    %AAC{
+      profile: AAC.aot_id_to_profile(profile),
+      mpeg_version: 4,
+      sample_rate: sample_rate,
+      channels: AAC.channel_config_id_to_channels(channel_configuration),
+      encapsulation: :none,
+      samples_per_frame: if(frame_length_flag == 0, do: 1024, else: 960)
+    }
+  end
 end

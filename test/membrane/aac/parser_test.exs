@@ -1,6 +1,6 @@
 defmodule Membrane.AAC.ParserTest do
   @moduledoc false
-  
+
   use ExUnit.Case
   import Membrane.ChildrenSpec
   import Membrane.Testing.Assertions
@@ -37,7 +37,7 @@ defmodule Membrane.AAC.ParserTest do
     assert_pipeline_play(fixture_pipeline_pid)
 
     assert_sink_stream_format(fixture_pipeline_pid, :sink, %AAC{
-      config: {^comparison_config, fixture_config}
+      config: {^comparison_config, fixture_config_contents}
     })
 
     assert_end_of_stream(fixture_pipeline_pid, :sink)
@@ -45,7 +45,7 @@ defmodule Membrane.AAC.ParserTest do
     assert_pipeline_play(conversion_pipeline_pid)
 
     assert_sink_stream_format(conversion_pipeline_pid, :sink, %AAC{
-      config: {^comparison_config, ^fixture_config}
+      config: {^comparison_config, ^fixture_config_contents}
     })
 
     assert_end_of_stream(conversion_pipeline_pid, :sink)
