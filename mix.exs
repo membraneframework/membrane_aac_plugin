@@ -61,7 +61,7 @@ defmodule Membrane.AAC.MixProject do
       {:bunch, "~> 1.0"},
       {:membrane_aac_format,
        git: "https://github.com/membraneframework/membrane_aac_format.git",
-       branch: "add-config-field",
+       branch: "add-custom-sample-rate",
        override: true},
       {:membrane_file_plugin, "~> 0.13.1", only: :test},
       {:crc, "~> 0.10.2"},

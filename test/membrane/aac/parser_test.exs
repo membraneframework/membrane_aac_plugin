@@ -1,10 +1,12 @@
 defmodule Membrane.AAC.ParserTest do
+  @moduledoc false
+  
   use ExUnit.Case
   import Membrane.ChildrenSpec
   import Membrane.Testing.Assertions
-  alias Membrane.Testing.Pipeline
   alias Membrane.AAC.Parser
   alias Membrane.{AAC, Testing}
+  alias Membrane.Testing.Pipeline
 
   @expected_timestamps [
     0,
@@ -27,8 +29,7 @@ defmodule Membrane.AAC.ParserTest do
       |> child(:parser2, %Parser{output_config: comparison_config})
       |> child(:sink, Testing.Sink)
 
-    fixture_pipeline_pid =
-      Pipeline.start_link_supervised!(structure: fixture_pipeline_structure)
+    fixture_pipeline_pid = Pipeline.start_link_supervised!(structure: fixture_pipeline_structure)
 
     conversion_pipeline_pid =
       Pipeline.start_link_supervised!(structure: conversion_pipeline_structure)
