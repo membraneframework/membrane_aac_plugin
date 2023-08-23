@@ -51,7 +51,7 @@ defmodule Membrane.AAC.Parser.ADTS do
     do: {:ok, {:halt, {data, timestamp}}}
 
   defp parse_header(
-         <<0xFFF::12, mpeg_version_id::1, _layer::2, protection_absent::1, profile_id::2,
+         <<0xFFF::12, _mpeg_version_id::1, _layer::2, protection_absent::1, profile_id::2,
            sampling_frequency_id::4, _priv_bit::1, channel_config_id::3, _originality::1,
            _home::1, _copyright_id_bit::1, _copyright_id_start::1, frame_length::13,
            _buffer_fullness::11, aac_frames_cnt::2, rest::binary>> = data,
@@ -68,11 +68,8 @@ defmodule Membrane.AAC.Parser.ADTS do
         crc
       end
 
-    mpeg_version = AAC.mpeg_version_id_to_mpeg_version(mpeg_version_id)
-
     stream_format = %AAC{
       profile: AAC.aot_id_to_profile(profile_id + 1),
-      mpeg_version: mpeg_version,
       sample_rate: AAC.sampling_frequency_id_to_sample_rate(sampling_frequency_id),
       channels: AAC.channel_config_id_to_channels(channel_config_id),
       frames_per_buffer: aac_frames_cnt + 1,
