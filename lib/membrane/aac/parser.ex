@@ -45,7 +45,7 @@ defmodule Membrane.AAC.Parser do
                 description: "Maximum stream bitrate. Should be set to 0 if unknown."
               ],
               output_config: [
-                spec: :esds | :audio_specifig_config | nil,
+                spec: :esds | :audio_specific_config | nil,
                 default: nil,
                 description: """
                   Determines which config structure will be generated and included in

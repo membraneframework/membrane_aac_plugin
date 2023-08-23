@@ -1,6 +1,6 @@
 defmodule Membrane.AAC.Parser.Config do
   @moduledoc false
-  
+
   alias Membrane.AAC
   alias Membrane.AAC.Parser.{AudioSpecificConfig, Esds}
 

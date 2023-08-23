@@ -7,8 +7,8 @@ defmodule Membrane.AAC.Parser.AudioSpecificConfig do
 
   alias Membrane.AAC
 
-  @spec generate_audio_specifig_config(AAC.t()) :: binary()
-  def generate_audio_specifig_config(stream_format) do
+  @spec generate_audio_specific_config(AAC.t()) :: binary()
+  def generate_audio_specific_config(stream_format) do
     aot = AAC.profile_to_aot_id(stream_format.profile)
     frequency_id = AAC.sample_rate_to_sampling_frequency_id(stream_format.sample_rate)
     channel_configuration = AAC.channels_to_channel_config_id(stream_format.channels)
