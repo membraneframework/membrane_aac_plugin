@@ -69,7 +69,7 @@ defmodule Membrane.AAC.ParserTest do
              channels: 1,
              encapsulation: :ADTS,
              frames_per_buffer: 1,
-             mpeg_version: 2,
+             mpeg_version: 4,
              profile: :LC,
              sample_rate: 44_100,
              samples_per_frame: 1024

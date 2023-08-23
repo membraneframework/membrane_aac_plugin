@@ -8,50 +8,52 @@ defmodule Membrane.AAC.Parser do
   If PTS is absent, it calculates and puts one based on the sample rate.
   """
   use Membrane.Filter
-  alias __MODULE__.Helper
+  alias __MODULE__.{ADTS, Config}
   alias Membrane.{AAC, Buffer}
 
-  def_input_pad :input,
+  def_input_pad(:input,
     demand_unit: :buffers,
     accepted_format: any_of(AAC, Membrane.RemoteStream)
-  
+  )
 
-  def_output_pad :output, accepted_format: AAC
+  def_output_pad(:output, accepted_format: AAC)
 
-  def_options samples_per_frame: [
-                spec: AAC.samples_per_frame(),
-                default: 1024,
-                description: "Count of audio samples in each AAC frame"
-              ],
-              out_encapsulation: [
-                spec: AAC.encapsulation(),
-                default: :ADTS,
-                description: """
-                Determines whether output AAC frames should be prefixed with ADTS headers
-                """
-              ],
-              in_encapsulation: [
-                spec: AAC.encapsulation(),
-                default: :ADTS
-              ],
-              avg_bit_rate: [
-                spec: non_neg_integer(),
-                default: 0,
-                description: "Average stream bitrate. Should be set to 0 if unknown."
-              ],
-              max_bit_rate: [
-                spec: non_neg_integer(),
-                default: 0,
-                description: "Maximum stream bitrate. Should be set to 0 if unknown."
-              ],
-              output_config: [
-                spec: :esds | :audio_specifig_config | nil,
-                default: nil,
-                description: """
-                  Determines which config structure will be generated and included in
-                  output stream format as `config`.
-                """
-              ]
+  def_options(
+    samples_per_frame: [
+      spec: AAC.samples_per_frame(),
+      default: 1024,
+      description: "Count of audio samples in each AAC frame"
+    ],
+    out_encapsulation: [
+      spec: AAC.encapsulation(),
+      default: :ADTS,
+      description: """
+      Determines whether output AAC frames should be prefixed with ADTS headers
+      """
+    ],
+    in_encapsulation: [
+      spec: AAC.encapsulation(),
+      default: :ADTS
+    ],
+    avg_bit_rate: [
+      spec: non_neg_integer(),
+      default: 0,
+      description: "Average stream bitrate. Should be set to 0 if unknown."
+    ],
+    max_bit_rate: [
+      spec: non_neg_integer(),
+      default: 0,
+      description: "Maximum stream bitrate. Should be set to 0 if unknown."
+    ],
+    output_config: [
+      spec: :esds | :audio_specifig_config | nil,
+      default: nil,
+      description: """
+        Determines which config structure will be generated and included in
+        output stream format as `config`.
+      """
+    ]
+  )
 
   @type timestamp :: Ratio.t() | Membrane.Time.t()
 
@@ -70,14 +72,9 @@ defmodule Membrane.AAC.Parser do
       """)
     end
 
-    stream_format =
-      case stream_format.config do
-        {:esds, esds} -> Map.merge(stream_format, Helper.parse_esds(esds))
-        {:audio_specific_config, config} -> Helper.parse_audio_specific_config(config)
-        nil -> stream_format
-      end
+    stream_format = Config.parse_config(stream_format)
 
-    config = Helper.generate_config(stream_format, state)
+    config = Config.generate_config(stream_format, state)
 
     {[
        stream_format:
@@ -108,7 +105,7 @@ defmodule Membrane.AAC.Parser do
     %{stream_format: stream_format} = ctx.pads.output
     timestamp = buffer.pts || state.timestamp
 
-    case Helper.parse_adts(state.leftover <> buffer.payload, stream_format, timestamp, state) do
+    case ADTS.parse_adts(state.leftover <> buffer.payload, stream_format, timestamp, state) do
       {:ok, {output, leftover, timestamp}} ->
         actions = Enum.map(output, fn {action, value} -> {action, {:output, value}} end)
 
@@ -121,8 +118,7 @@ defmodule Membrane.AAC.Parser do
 
   @impl true
   def handle_process(:input, buffer, ctx, %{in_encapsulation: :none} = state) do
-    timestamp =
-      buffer.pts || Helper.next_timestamp(state.timestamp, ctx.pads.output.stream_format)
+    timestamp = buffer.pts || ADTS.next_timestamp(state.timestamp, ctx.pads.output.stream_format)
 
     buffer = %{buffer | pts: timestamp}
 
@@ -131,7 +127,7 @@ defmodule Membrane.AAC.Parser do
         :ADTS ->
           %Buffer{
             buffer
-            | payload: Helper.payload_to_adts(buffer.payload, ctx.pads.output.stream_format)
+            | payload: ADTS.payload_to_adts(buffer.payload, ctx.pads.output.stream_format)
           }
 
         _other ->
