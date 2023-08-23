@@ -15,7 +15,6 @@ defmodule Membrane.AAC.Parser do
     demand_unit: :buffers,
     accepted_format: any_of(AAC, Membrane.RemoteStream)
 
-
   def_output_pad :output, accepted_format: AAC
 
   def_options samples_per_frame: [

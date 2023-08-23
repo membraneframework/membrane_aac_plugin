@@ -60,9 +60,7 @@ defmodule Membrane.AAC.MixProject do
       {:membrane_core, "~> 0.12.0"},
       {:bunch, "~> 1.0"},
       {:membrane_aac_format,
-       github: "membraneframework/membrane_aac_format",
-       branch: "add-config-field",
-       override: true},
+       github: "membraneframework/membrane_aac_format", branch: "add-config-field", override: true},
       {:membrane_file_plugin, "~> 0.13.1", only: :test},
       {:crc, "~> 0.10.2"},
 
