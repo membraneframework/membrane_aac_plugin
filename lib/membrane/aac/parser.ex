@@ -29,10 +29,6 @@ defmodule Membrane.AAC.Parser do
                 Determines whether output AAC frames should be prefixed with ADTS headers
                 """
               ],
-              in_encapsulation: [
-                spec: AAC.encapsulation(),
-                default: :ADTS
-              ],
               avg_bit_rate: [
                 spec: non_neg_integer(),
                 default: 0,
@@ -56,19 +52,16 @@ defmodule Membrane.AAC.Parser do
 
   @impl true
   def handle_init(_ctx, options) do
-    state = options |> Map.from_struct() |> Map.merge(%{leftover: <<>>, timestamp: 0})
+    state =
+      options
+      |> Map.from_struct()
+      |> Map.merge(%{leftover: <<>>, timestamp: 0, in_encapsulation: nil})
+
     {[], state}
   end
 
   @impl true
   def handle_stream_format(:input, %AAC{} = stream_format, _ctx, state) do
-    if stream_format.encapsulation != state.in_encapsulation do
-      raise("""
-      %AAC{encapsulation: #{inspect(state.in_encapsulation)}} stream format is required when declaring in_encapsulation
-      as #{inspect(state.in_encapsulation)}. Got %AAC{encapsulation: #{inspect(stream_format.encapsulation)}}).
-      """)
-    end
-
     stream_format = Config.parse_config(stream_format)
 
     config = Config.generate_config(stream_format, state)
@@ -76,25 +69,12 @@ defmodule Membrane.AAC.Parser do
     {[
        stream_format:
          {:output, %{stream_format | encapsulation: state.out_encapsulation, config: config}}
-     ], state}
+     ], %{state | in_encapsulation: stream_format.encapsulation}}
   end
 
   @impl true
-  def handle_stream_format(:input, %Membrane.RemoteStream{} = stream_format, _ctx, state) do
-    if state.in_encapsulation == :none and state.out_encapsulation == :ADTS do
-      raise """
-        Not supported parser configuration
-        for the stream format: #{inspect(stream_format)}:
-        `in_encapsulation: :none`, `out_encapsulation: :ADTS`
-
-        There is no way to fetch metadata required by ADTS encapsulation,
-        such as number of channels or the sampling frequency, directly
-        from the stream with `in_encapsulation: :none`, neither has the metadata
-        been provided in the stream format.
-      """
-    end
-
-    {[], state}
+  def handle_stream_format(:input, %Membrane.RemoteStream{}, _ctx, state) do
+    {[], %{state | in_encapsulation: :ADTS}}
   end
 
   @impl true

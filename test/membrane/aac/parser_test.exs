@@ -100,8 +100,7 @@ defmodule Membrane.AAC.ParserTest do
   test "correct AAC stream format is generated in response to provided audio specific config" do
     {_actions, state} =
       Parser.handle_init(nil, %Parser{
-        out_encapsulation: :none,
-        in_encapsulation: :none
+        out_encapsulation: :none
       })
 
     input_stream_format = %AAC{
