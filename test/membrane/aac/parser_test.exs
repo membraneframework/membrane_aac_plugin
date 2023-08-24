@@ -54,6 +54,37 @@ defmodule Membrane.AAC.ParserTest do
     Pipeline.terminate(conversion_pipeline_pid)
   end
 
+  defp perform_custom_sample_rate_test(transition_config, mpeg_version) do
+    input_stream_format = %Membrane.AAC{
+      channels: 1,
+      encapsulation: :none,
+      frames_per_buffer: 1,
+      mpeg_version: mpeg_version,
+      profile: :LC,
+      sample_rate: 20_000,
+      samples_per_frame: 1024,
+      config: nil
+    }
+
+    state = %{
+      avg_bit_rate: 0,
+      max_bit_rate: 0,
+      output_config: transition_config,
+      out_encapsulation: :none,
+      in_encapsulation: nil
+    }
+
+    {[stream_format: {:output, config_stream_format}], _state} =
+      Parser.handle_stream_format(:input, input_stream_format, nil, state)
+
+    state = %{state | output_config: nil}
+
+    {[stream_format: {:output, output_stream_format}], _state} =
+      Parser.handle_stream_format(:input, config_stream_format, nil, state)
+
+    assert output_stream_format == input_stream_format
+  end
+
   test "integration" do
     pipeline =
       Testing.Pipeline.start_link_supervised!(
@@ -133,5 +164,10 @@ defmodule Membrane.AAC.ParserTest do
   test "the output stream format is the same as input when converting between configs" do
     perform_conversion_test(:esds, :audio_specific_config)
     perform_conversion_test(:audio_specific_config, :esds)
+  end
+
+  test "custom sample rates are encoded and decoded correctly" do
+    perform_custom_sample_rate_test(:esds, 2)
+    perform_custom_sample_rate_test(:audio_specific_config, 4)
   end
 end

@@ -1,4 +1,6 @@
 defmodule Membrane.AAC.FillerTest do
+  @moduledoc false
+  
   use ExUnit.Case
   alias Membrane.AAC.Filler
   alias Membrane.Buffer
