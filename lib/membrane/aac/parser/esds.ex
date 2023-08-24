@@ -55,6 +55,7 @@ defmodule Membrane.AAC.Parser.Esds do
 
   @spec parse_esds(binary()) :: %{
           profile: AAC.profile(),
+          mpeg_version: 4,
           samples_per_frame: AAC.samples_per_frame()
         }
   def parse_esds(esds) do
@@ -91,6 +92,7 @@ defmodule Membrane.AAC.Parser.Esds do
 
     %{
       profile: AAC.aot_id_to_profile(aot_id),
+      mpeg_version: 4,
       samples_per_frame: AAC.frame_length_id_to_samples_per_frame(frame_length_id)
     }
   end
