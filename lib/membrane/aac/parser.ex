@@ -29,22 +29,17 @@ defmodule Membrane.AAC.Parser do
                 Determines whether output AAC frames should be prefixed with ADTS headers
                 """
               ],
-              avg_bit_rate: [
-                spec: non_neg_integer(),
-                default: 0,
-                description: "Average stream bitrate. Should be set to 0 if unknown."
-              ],
-              max_bit_rate: [
-                spec: non_neg_integer(),
-                default: 0,
-                description: "Maximum stream bitrate. Should be set to 0 if unknown."
-              ],
               output_config: [
-                spec: :esds | :audio_specific_config | nil,
+                spec:
+                  :audio_specific_config
+                  | :esds
+                  | {:esds, avg_bit_rate :: non_neg_integer(), max_bit_rate :: non_neg_integer()}
+                  | nil,
                 default: nil,
                 description: """
-                  Determines which config structure will be generated and included in
-                  output stream format as `config`.
+                Determines which config structure will be generated and included in
+                output stream format as `config`. For `esds` config `avg_bit_rate` and `max_bit_rate` can
+                be additionally provided and will be encoded in the `esds`. If not known they should be set to 0.
                 """
               ]
 
@@ -52,10 +47,25 @@ defmodule Membrane.AAC.Parser do
 
   @impl true
   def handle_init(_ctx, options) do
+    {output_config, options} = Map.pop!(options, :output_config)
+
+    {output_config, avg_bit_rate, max_bit_rate} =
+      case output_config do
+        {:esds, avg_bit_rate, max_bit_rate} -> {:esds, avg_bit_rate, max_bit_rate}
+        config -> {config, 0, 0}
+      end
+
     state =
       options
       |> Map.from_struct()
-      |> Map.merge(%{leftover: <<>>, timestamp: 0, in_encapsulation: nil})
+      |> Map.merge(%{
+        leftover: <<>>,
+        timestamp: 0,
+        in_encapsulation: nil,
+        output_config: output_config,
+        avg_bit_rate: avg_bit_rate,
+        max_bit_rate: max_bit_rate
+      })
 
     {[], state}
   end
