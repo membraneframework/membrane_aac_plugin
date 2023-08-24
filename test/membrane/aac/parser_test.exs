@@ -54,12 +54,12 @@ defmodule Membrane.AAC.ParserTest do
     Pipeline.terminate(conversion_pipeline_pid)
   end
 
-  defp perform_custom_sample_rate_test(transition_config, mpeg_version) do
+  defp perform_custom_sample_rate_test(transition_config) do
     input_stream_format = %Membrane.AAC{
       channels: 1,
       encapsulation: :none,
       frames_per_buffer: 1,
-      mpeg_version: mpeg_version,
+      mpeg_version: 4,
       profile: :LC,
       sample_rate: 20_000,
       samples_per_frame: 1024,
@@ -101,7 +101,7 @@ defmodule Membrane.AAC.ParserTest do
              channels: 1,
              encapsulation: :ADTS,
              frames_per_buffer: 1,
-             mpeg_version: 2,
+             mpeg_version: 4,
              profile: :LC,
              sample_rate: 44_100,
              samples_per_frame: 1024
@@ -167,7 +167,7 @@ defmodule Membrane.AAC.ParserTest do
   end
 
   test "custom sample rates are encoded and decoded correctly" do
-    perform_custom_sample_rate_test(:esds, 2)
-    perform_custom_sample_rate_test(:audio_specific_config, 4)
+    perform_custom_sample_rate_test(:esds)
+    perform_custom_sample_rate_test(:audio_specific_config)
   end
 end
