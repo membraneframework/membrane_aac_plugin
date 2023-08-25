@@ -8,90 +8,91 @@ defmodule Membrane.AAC.Parser do
   If PTS is absent, it calculates and puts one based on the sample rate.
   """
   use Membrane.Filter
-  alias __MODULE__.Helper
+  alias __MODULE__.{ADTS, Config}
   alias Membrane.{AAC, Buffer}
 
   def_input_pad :input,
     demand_unit: :buffers,
-    accepted_format: any_of(AAC, AAC.RemoteStream, Membrane.RemoteStream)
+    accepted_format: any_of(AAC, Membrane.RemoteStream)
 
   def_output_pad :output, accepted_format: AAC
 
   def_options samples_per_frame: [
-                spec: AAC.samples_per_frame_t(),
+                spec: AAC.samples_per_frame(),
                 default: 1024,
                 description: "Count of audio samples in each AAC frame"
               ],
               out_encapsulation: [
-                spec: AAC.encapsulation_t(),
+                spec: AAC.encapsulation(),
                 default: :ADTS,
                 description: """
                 Determines whether output AAC frames should be prefixed with ADTS headers
                 """
               ],
-              in_encapsulation: [
-                spec: AAC.encapsulation_t(),
-                default: :ADTS
+              output_config: [
+                spec:
+                  :audio_specific_config
+                  | :esds
+                  | {:esds, avg_bit_rate :: non_neg_integer(), max_bit_rate :: non_neg_integer()}
+                  | nil,
+                default: nil,
+                description: """
+                Determines which config structure will be generated and included in
+                output stream format as `config`. For `esds` config `avg_bit_rate` and `max_bit_rate` can
+                be additionally provided and will be encoded in the `esds`. If not known they should be set to 0.
+                """
               ]
 
-  @type timestamp_t :: Ratio.t() | Membrane.Time.t()
+  @type timestamp :: Ratio.t() | Membrane.Time.t()
 
   @impl true
   def handle_init(_ctx, options) do
-    state = options |> Map.from_struct() |> Map.merge(%{leftover: <<>>, timestamp: 0})
-    {[], state}
-  end
+    {output_config, options} = Map.pop!(options, :output_config)
 
-  @impl true
-  def handle_stream_format(
-        :input,
-        %AAC{encapsulation: encapsulation} = stream_format,
-        _ctx,
-        %{in_encapsulation: encapsulation} = state
-      ) do
-    {[stream_format: {:output, %{stream_format | encapsulation: state.out_encapsulation}}], state}
-  end
+    {output_config, avg_bit_rate, max_bit_rate} =
+      case output_config do
+        {:esds, avg_bit_rate, max_bit_rate} -> {:esds, avg_bit_rate, max_bit_rate}
+        config -> {config, 0, 0}
+      end
 
-  @impl true
-  def handle_stream_format(:input, %AAC{} = stream_format, _ctx, state),
-    do:
-      raise("""
-      %AAC{encapsulation: #{inspect(state.in_encapsulation)}} stream format is required when declaring in_encapsulation
-      as #{inspect(state.in_encapsulation)}. Got %AAC{encapsulation: #{inspect(stream_format.encapsulation)}}).
-      """)
-
-  @impl true
-  def handle_stream_format(:input, %AAC.RemoteStream{} = stream_format, _ctx, state) do
-    stream_format = Helper.parse_audio_specific_config!(stream_format.audio_specific_config)
-
-    {[stream_format: {:output, %{stream_format | encapsulation: state.out_encapsulation}}], state}
-  end
-
-  @impl true
-  def handle_stream_format(:input, %Membrane.RemoteStream{} = stream_format, _ctx, state) do
-    if state.in_encapsulation == :none and state.out_encapsulation == :ADTS do
-      raise """
-        Not supported parser configuration
-        for the stream format: #{inspect(stream_format)}:
-        `in_encapsulation: :none`, `out_encapsulation: :ADTS`
-
-        There is no way to fetch metadata required by ADTS encapsulation,
-        such as number of channels or the sampling frequency, directly
-        from the stream with `in_encapsulation: :none`, neither has the metadata
-        been provided in the stream format.
-      """
-    end
+    state =
+      options
+      |> Map.from_struct()
+      |> Map.merge(%{
+        leftover: <<>>,
+        timestamp: 0,
+        in_encapsulation: nil,
+        output_config: output_config,
+        avg_bit_rate: avg_bit_rate,
+        max_bit_rate: max_bit_rate
+      })
 
     {[], state}
+  end
+
+  @impl true
+  def handle_stream_format(:input, %AAC{} = stream_format, _ctx, state) do
+    stream_format = Config.parse_config(stream_format)
+
+    config = Config.generate_config(stream_format, state)
+
+    {[
+       stream_format:
+         {:output, %{stream_format | encapsulation: state.out_encapsulation, config: config}}
+     ], %{state | in_encapsulation: stream_format.encapsulation}}
+  end
+
+  @impl true
+  def handle_stream_format(:input, %Membrane.RemoteStream{}, _ctx, state) do
+    {[], %{state | in_encapsulation: :ADTS}}
   end
 
   @impl true
   def handle_process(:input, buffer, ctx, %{in_encapsulation: :ADTS} = state) do
     %{stream_format: stream_format} = ctx.pads.output
     timestamp = buffer.pts || state.timestamp
-    parse_opts = Map.take(state, [:samples_per_frame, :out_encapsulation, :in_encapsulation])
 
-    case Helper.parse_adts(state.leftover <> buffer.payload, stream_format, timestamp, parse_opts) do
+    case ADTS.parse_adts(state.leftover <> buffer.payload, stream_format, timestamp, state) do
       {:ok, {output, leftover, timestamp}} ->
         actions = Enum.map(output, fn {action, value} -> {action, {:output, value}} end)
 
@@ -104,8 +105,7 @@ defmodule Membrane.AAC.Parser do
 
   @impl true
   def handle_process(:input, buffer, ctx, %{in_encapsulation: :none} = state) do
-    timestamp =
-      buffer.pts || Helper.next_timestamp(state.timestamp, ctx.pads.output.stream_format)
+    timestamp = buffer.pts || ADTS.next_timestamp(state.timestamp, ctx.pads.output.stream_format)
 
     buffer = %{buffer | pts: timestamp}
 
@@ -114,7 +114,7 @@ defmodule Membrane.AAC.Parser do
         :ADTS ->
           %Buffer{
             buffer
-            | payload: Helper.payload_to_adts(buffer.payload, ctx.pads.output.stream_format)
+            | payload: ADTS.payload_to_adts(buffer.payload, ctx.pads.output.stream_format)
           }
 
         _other ->
