@@ -11,18 +11,16 @@ defmodule Membrane.AAC.Parser.AudioSpecificConfig do
   def generate_audio_specific_config(stream_format) do
     aot = AAC.profile_to_aot_id(stream_format.profile)
     frequency_id = AAC.sample_rate_to_sampling_frequency_id(stream_format.sample_rate)
-    channel_configuration = AAC.channels_to_channel_config_id(stream_format.channels)
+    channel_config_id = AAC.channels_to_channel_config_id(stream_format.channels)
+    frame_length_id = AAC.samples_per_frame_to_frame_length_id(stream_format.samples_per_frame)
 
-    frame_length_flag =
-      case stream_format.samples_per_frame do
-        960 -> 1
-        1024 -> 0
-      end
+    depends_on_core_coder = 0
+    extension_flag = 0
 
     custom_frequency = if frequency_id == 15, do: <<stream_format.sample_rate::24>>, else: <<>>
 
-    <<aot::5, frequency_id::4, custom_frequency::binary, channel_configuration::4,
-      frame_length_flag::1, 0::1, 0::1>>
+    <<aot::5, frequency_id::4, custom_frequency::binary, channel_config_id::4, frame_length_id::1,
+      depends_on_core_coder::1, extension_flag::1>>
   end
 
   @spec parse_audio_specific_config(binary()) :: AAC.t()
@@ -31,8 +29,8 @@ defmodule Membrane.AAC.Parser.AudioSpecificConfig do
 
     custom_frequency_length = if frequency_id == 15, do: 24, else: 0
 
-    <<custom_frequency::integer-size(custom_frequency_length), channel_configuration::4,
-      frame_length_flag::1, _rest::bits>> = audio_specific_config_rest
+    <<custom_frequency::integer-size(custom_frequency_length), channel_config_id::4,
+      frame_length_id::1, _rest::bits>> = audio_specific_config_rest
 
     sample_rate =
       if frequency_id == 15,
@@ -43,9 +41,10 @@ defmodule Membrane.AAC.Parser.AudioSpecificConfig do
       profile: AAC.aot_id_to_profile(profile),
       mpeg_version: 4,
       sample_rate: sample_rate,
-      channels: AAC.channel_config_id_to_channels(channel_configuration),
+      channels: AAC.channel_config_id_to_channels(channel_config_id),
       encapsulation: :none,
-      samples_per_frame: if(frame_length_flag == 0, do: 1024, else: 960)
+      samples_per_frame: AAC.frame_length_id_to_samples_per_frame(frame_length_id),
+      config: {:audio_specific_config, audio_specific_config}
     }
   end
 end

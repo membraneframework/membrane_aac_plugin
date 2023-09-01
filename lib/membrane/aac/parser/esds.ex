@@ -6,25 +6,12 @@ defmodule Membrane.AAC.Parser.Esds do
   """
 
   alias Membrane.AAC
+  alias Membrane.AAC.Parser.AudioSpecificConfig
 
   @spec generate_esds(AAC.t(), Membrane.Element.state()) :: binary()
   def generate_esds(stream_format, state) do
-    aot_id = Membrane.AAC.profile_to_aot_id(stream_format.profile)
-    frequency_id = Membrane.AAC.sample_rate_to_sampling_frequency_id(stream_format.sample_rate)
-    channel_config_id = Membrane.AAC.channels_to_channel_config_id(stream_format.channels)
-
-    frame_length_id =
-      Membrane.AAC.samples_per_frame_to_frame_length_id(stream_format.samples_per_frame)
-
-    depends_on_core_coder = 0
-    extension_flag = 0
-
-    custom_frequency = if frequency_id == 15, do: <<stream_format.sample_rate::24>>, else: <<>>
-
     section5 =
-      <<aot_id::5, frequency_id::4, custom_frequency::binary, channel_config_id::4,
-        frame_length_id::1, depends_on_core_coder::1, extension_flag::1>>
-      |> generate_esds_section(5)
+      generate_esds_section(AudioSpecificConfig.generate_audio_specific_config(stream_format), 5)
 
     # 64 = mpeg4-audio
     object_type_id = 64
@@ -53,16 +40,12 @@ defmodule Membrane.AAC.Parser.Esds do
     <<section_no, type_tag::binary, byte_size(payload), payload::binary>>
   end
 
-  @spec parse_esds(binary()) :: %{
-          profile: AAC.profile(),
-          mpeg_version: 4,
-          samples_per_frame: AAC.samples_per_frame()
-        }
+  @spec parse_esds(binary()) :: AAC.t()
   def parse_esds(esds) do
     stream_priority = 0
 
-    {esds, <<>>} = unpack_esds_section(esds, 3)
-    <<_elementary_stream_id::16, ^stream_priority, rest::binary>> = esds
+    {section_3, <<>>} = unpack_esds_section(esds, 3)
+    <<_elementary_stream_id::16, ^stream_priority, rest::binary>> = section_3
 
     {section_4, esds_section_6} = unpack_esds_section(rest, 4)
     {<<2>>, <<>>} = unpack_esds_section(esds_section_6, 6)
@@ -80,18 +63,8 @@ defmodule Membrane.AAC.Parser.Esds do
 
     {section_5, <<>>} = unpack_esds_section(esds_section_5, 5)
 
-    <<aot_id::5, frequency_id::4, section_5_rest::bitstring>> = section_5
-
-    custom_frequency_length = if frequency_id == 15, do: 24, else: 0
-
-    <<_maybe_custom_frequency::integer-size(custom_frequency_length), _channel_config_id::4,
-      frame_length_id::1, _rest::bitstring>> = section_5_rest
-
-    %{
-      profile: AAC.aot_id_to_profile(aot_id),
-      mpeg_version: 4,
-      samples_per_frame: AAC.frame_length_id_to_samples_per_frame(frame_length_id)
-    }
+    AudioSpecificConfig.parse_audio_specific_config(section_5)
+    |> Map.put(:config, {:esds, esds})
   end
 
   defp unpack_esds_section(section, section_no) do

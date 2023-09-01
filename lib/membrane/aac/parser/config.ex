@@ -1,6 +1,7 @@
 defmodule Membrane.AAC.Parser.Config do
   @moduledoc false
 
+  require Membrane.Logger
   alias Membrane.AAC
   alias Membrane.AAC.Parser.{AudioSpecificConfig, Esds}
 
@@ -23,10 +24,24 @@ defmodule Membrane.AAC.Parser.Config do
   def parse_config(stream_format) do
     case stream_format.config do
       {:esds, esds} ->
-        Map.merge(stream_format, Esds.parse_esds(esds))
+        esds_stream_format = Esds.parse_esds(esds)
 
-      {:audio_specific_config, config} ->
-        AudioSpecificConfig.parse_audio_specific_config(config)
+        if esds_stream_format.sample_rate != stream_format.sample_rate,
+          do:
+            Membrane.Logger.warning(
+              "Sample rate field decoded from esds differs from stream_format:\nesds:#{inspect(esds_stream_format)}\nstream_format:#{inspect(stream_format)}"
+            )
+
+        if esds_stream_format.channels != stream_format.channels,
+          do:
+            Membrane.Logger.warning(
+              "Channels field decoded from esds differs from stream_format:\nesds:#{inspect(esds_stream_format)}\nstream_format:#{inspect(stream_format)}"
+            )
+
+        esds_stream_format
+
+      {:audio_specific_config, audio_specific_config} ->
+        AudioSpecificConfig.parse_audio_specific_config(audio_specific_config)
 
       nil ->
         stream_format
