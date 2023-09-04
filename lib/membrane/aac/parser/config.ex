@@ -26,17 +26,18 @@ defmodule Membrane.AAC.Parser.Config do
       {:esds, esds} ->
         esds_stream_format = Esds.parse_esds(esds)
 
-        if esds_stream_format.sample_rate != stream_format.sample_rate,
-          do:
-            Membrane.Logger.warning(
-              "Sample rate field decoded from esds differs from stream_format:\nesds:#{inspect(esds_stream_format)}\nstream_format:#{inspect(stream_format)}"
-            )
-
-        if esds_stream_format.channels != stream_format.channels,
-          do:
-            Membrane.Logger.warning(
-              "Channels field decoded from esds differs from stream_format:\nesds:#{inspect(esds_stream_format)}\nstream_format:#{inspect(stream_format)}"
-            )
+        [:sample_rate, :channels]
+        |> Enum.map(fn field ->
+          {field, Map.fetch!(esds_stream_format, field), Map.fetch!(stream_format, field)}
+        end)
+        |> Enum.filter(fn {_field, esds_field, stream_field} -> esds_field != stream_field end)
+        |> Enum.each(fn {field, esds_field, stream_field} ->
+          Membrane.Logger.warning("""
+          #{inspect(field)} decoded from esds differs from stream_format:
+          esds: #{inspect(esds_field)}
+          stream_format: #{inspect(stream_field)}
+          """)
+        end)
 
         esds_stream_format
 
