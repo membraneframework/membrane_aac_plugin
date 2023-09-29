@@ -107,7 +107,7 @@ defmodule Membrane.AAC.Parser do
   def handle_process(:input, buffer, ctx, %{in_encapsulation: :none} = state) do
     timestamp = buffer.pts || ADTS.next_timestamp(state.timestamp, ctx.pads.output.stream_format)
 
-    buffer = %{buffer | pts: timestamp}
+    buffer = %{buffer | pts: Ratio.floor(timestamp)}
 
     buffer =
       case state.out_encapsulation do
