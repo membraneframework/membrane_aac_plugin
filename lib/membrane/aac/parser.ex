@@ -93,13 +93,14 @@ defmodule Membrane.AAC.Parser do
     timestamp = buffer.pts || state.timestamp
 
     {tags, payload} = parse_id3v4_tags(buffer.payload, [])
+    pts_correction_tag = find_pts_correction_tag(tags)
 
     case ADTS.parse_adts(state.leftover <> payload, stream_format, timestamp, state) do
       {:ok, {output, leftover, timestamp}} ->
         actions =
           Enum.map(output, fn
             {:buffer, buffer} ->
-              value = correct_pts(buffer, tags)
+              value = correct_pts(buffer, pts_correction_tag)
               {:buffer, {:output, value}}
 
             {action, value} ->
@@ -139,12 +140,12 @@ defmodule Membrane.AAC.Parser do
     {[demand: {:input, size}], state}
   end
 
-  defp correct_pts(buffer, tags) do
-    case Enum.find(tags, fn {id, _val} -> id == "com.apple.streaming.transportStreamTimestamp" end) do
-      nil -> buffer
-      {_, pts} -> %Buffer{buffer | pts: Ratio.add(buffer.pts, pts)}
-    end
+  defp find_pts_correction_tag(tags) do
+    Enum.find(tags, fn {id, _val} -> id == "com.apple.streaming.transportStreamTimestamp" end)
   end
+
+  defp correct_pts(buffer, nil), do: buffer
+  defp correct_pts(buffer, {_, pts}), do: %Buffer{buffer | pts: Ratio.add(buffer.pts, pts)}
 
   defp parse_id3v4_tags(data, acc) do
     case parse_id3v4_tag(data) do
