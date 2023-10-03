@@ -151,8 +151,10 @@ defmodule Membrane.AAC.Parser do
     if start_pts != nil, do: %{state | start_pts: start_pts}, else: state
   end
 
-  defp correct_pts(buffer, nil), do: buffer
-  defp correct_pts(buffer, start_pts), do: %Buffer{buffer | pts: Ratio.add(buffer.pts, start_pts)}
+  defp correct_pts(buffer, nil), do: %Buffer{buffer | pts: Ratio.to_float(buffer.pts) |> round()}
+
+  defp correct_pts(buffer, start_pts),
+    do: %Buffer{buffer | pts: Ratio.add(buffer.pts, start_pts) |> Ratio.to_float() |> round()}
 
   defp parse_id3v4_tags(data, acc) do
     case parse_id3v4_tag(data) do
