@@ -95,7 +95,13 @@ defmodule Membrane.AAC.Parser do
     timestamp = buffer.pts || state.timestamp
 
     {tags, payload} = parse_id3v4_tags(buffer.payload, [])
-    state = update_start_pts(state, tags)
+
+    state =
+      if state.start_pts == nil do
+        update_start_pts(state, tags)
+      else
+        state
+      end
 
     case ADTS.parse_adts(state.leftover <> payload, stream_format, timestamp, state) do
       {:ok, {output, leftover, timestamp}} ->
