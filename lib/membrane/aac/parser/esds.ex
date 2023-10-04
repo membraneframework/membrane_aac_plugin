@@ -70,10 +70,14 @@ defmodule Membrane.AAC.Parser.Esds do
   defp unpack_esds_section(section, section_no) do
     type_tag = <<128, 128, 128>>
 
-    <<^section_no::8-integer, ^type_tag::binary-size(3), payload_size::8-integer, rest::binary>> =
-      section
+    case section do
+      <<^section_no::8-integer, ^type_tag::binary-size(3), payload_size::8-integer, rest::binary>> ->
+        <<payload::binary-size(payload_size), rest::binary>> = rest
+        {payload, rest}
 
-    <<payload::binary-size(payload_size), rest::binary>> = rest
-    {payload, rest}
+      <<^section_no::8-integer, payload_size::8-integer, rest::binary>> ->
+        <<payload::binary-size(payload_size), rest::binary>> = rest
+        {payload, rest}
+    end
   end
 end
