@@ -75,10 +75,9 @@ defmodule Membrane.AAC.Parser.Esds do
     stream_type = 5
     upstream_flag = 0
     reserved_flag_set_to_1 = 1
-    buffer_size = 0
 
     <<^object_type_id, ^stream_type::6, ^upstream_flag::1, ^reserved_flag_set_to_1::1,
-      ^buffer_size::24, _max_bit_rate::32, _avg_bit_rate::32, esds_section_5::binary>> = section_4
+      _buffer_size::24, _max_bit_rate::32, _avg_bit_rate::32, esds_section_5::binary>> = section_4
 
     {section_5, <<>>} = unpack_esds_section(esds_section_5, 5)
 
