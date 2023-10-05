@@ -10,11 +10,11 @@ defmodule Membrane.AAC.ParserTest do
 
   @expected_timestamps [
     0,
-    Ratio.new(10_240_000_000, 441),
-    Ratio.new(20_480_000_000, 441),
-    Ratio.new(10_240_000_000, 147),
-    Ratio.new(40_960_000_000, 441),
-    Ratio.new(51_200_000_000, 441)
+    23_219_955,
+    46_439_909,
+    69_659_864,
+    92_879_819,
+    116_099_773
   ]
 
   defp perform_conversion_test(comparison_config, transition_config) do

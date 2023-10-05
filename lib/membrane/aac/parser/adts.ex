@@ -36,7 +36,7 @@ defmodule Membrane.AAC.Parser.ADTS do
           do: [],
           else: [stream_format: frame_stream_format]
 
-      buffer = [buffer: %Buffer{pts: timestamp, payload: frame}]
+      buffer = [buffer: %Buffer{pts: timestamp |> Ratio.to_float() |> round(), payload: frame}]
 
       {:ok,
        {:cont, stream_format ++ buffer,
