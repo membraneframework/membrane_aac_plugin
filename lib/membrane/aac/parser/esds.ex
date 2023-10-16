@@ -42,8 +42,6 @@ defmodule Membrane.AAC.Parser.Esds do
 
   @spec parse_esds(binary()) :: AAC.t()
   def parse_esds(esds) do
-    stream_priority = 0
-
     {section_3, <<>>} = unpack_esds_section(esds, 3)
 
     <<_elementary_stream_id::16, stream_dependence_flag::1, url_flag::1, ocr_stream_flag::1,
@@ -52,7 +50,8 @@ defmodule Membrane.AAC.Parser.Esds do
       section_3
 
     rest =
-      Bunch.then_if(rest, stream_dependence_flag != 0, fn binary ->
+      rest
+      |> Bunch.then_if(stream_dependence_flag != 0, fn binary ->
         <<_depends_on_es_id::16, rest::binary>> = binary
         rest
       end)
