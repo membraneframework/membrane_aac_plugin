@@ -42,10 +42,28 @@ defmodule Membrane.AAC.Parser.Esds do
 
   @spec parse_esds(binary()) :: AAC.t()
   def parse_esds(esds) do
-    stream_priority = 0
-
     {section_3, <<>>} = unpack_esds_section(esds, 3)
-    <<_elementary_stream_id::16, ^stream_priority, rest::binary>> = section_3
+
+    <<_elementary_stream_id::16, stream_dependence_flag::1, url_flag::1, ocr_stream_flag::1,
+      _stream_priority::5,
+      rest::binary>> =
+      section_3
+
+    rest =
+      rest
+      |> Bunch.then_if(stream_dependence_flag != 0, fn binary ->
+        <<_depends_on_es_id::16, rest::binary>> = binary
+        rest
+      end)
+      |> Bunch.then_if(url_flag != 0, fn binary ->
+        <<url_length::8, rest::binary>> = binary
+        <<_url::binary-size(url_length), rest::binary>> = rest
+        rest
+      end)
+      |> Bunch.then_if(ocr_stream_flag != 0, fn binary ->
+        <<_ocr_es_id::16, rest::binary>> = binary
+        rest
+      end)
 
     {section_4, esds_section_6} = unpack_esds_section(rest, 4)
     {<<2>>, <<>>} = unpack_esds_section(esds_section_6, 6)
@@ -69,10 +87,14 @@ defmodule Membrane.AAC.Parser.Esds do
   defp unpack_esds_section(section, section_no) do
     type_tag = <<128, 128, 128>>
 
-    <<^section_no::8-integer, ^type_tag::binary-size(3), payload_size::8-integer, rest::binary>> =
-      section
+    case section do
+      <<^section_no::8-integer, ^type_tag::binary-size(3), payload_size::8-integer, rest::binary>> ->
+        <<payload::binary-size(payload_size), rest::binary>> = rest
+        {payload, rest}
 
-    <<payload::binary-size(payload_size), rest::binary>> = rest
-    {payload, rest}
+      <<^section_no::8-integer, payload_size::8-integer, rest::binary>> ->
+        <<payload::binary-size(payload_size), rest::binary>> = rest
+        {payload, rest}
+    end
   end
 end
