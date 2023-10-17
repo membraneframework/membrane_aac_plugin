@@ -15,7 +15,7 @@ The package can be installed by adding `membrane_aac_plugin` to your list of dep
 ```elixir
 def deps do
   [
-    {:membrane_aac_plugin, "~> 0.16.1"}
+    {:membrane_aac_plugin, "~> 0.17.0"}
   ]
 end
 ```
