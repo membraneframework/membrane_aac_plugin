@@ -2,7 +2,7 @@ defmodule Membrane.AAC.Parser.AudioSpecificConfig do
   @moduledoc """
   Utility functions for parsing and generating Audio Specific Config.
 
-  It's structure is described in section 1.6.2.1 of ISO/IEC 14496-3.
+  It's spec is described in section 1.6.2.1 of ISO/IEC 14496-3.
   """
 
   alias Membrane.AAC

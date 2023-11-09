@@ -18,31 +18,27 @@ defmodule Membrane.AAC.ParserTest do
   ]
 
   defp perform_conversion_test(comparison_config, transition_config) do
-    fixture_pipeline_structure =
+    fixture_pipeline_spec =
       child(:file, %Membrane.File.Source{location: "test/fixtures/sample.aac"})
       |> child(:parser, %Parser{output_config: comparison_config})
       |> child(:sink, Testing.Sink)
 
-    conversion_pipeline_structure =
+    conversion_pipeline_spec =
       child(:file, %Membrane.File.Source{location: "test/fixtures/sample.aac"})
       |> child(:parser1, %Parser{output_config: transition_config})
       |> child(:parser2, %Parser{output_config: comparison_config})
       |> child(:sink, Testing.Sink)
 
-    fixture_pipeline_pid = Pipeline.start_link_supervised!(structure: fixture_pipeline_structure)
+    fixture_pipeline_pid = Pipeline.start_link_supervised!(spec: fixture_pipeline_spec)
 
     conversion_pipeline_pid =
-      Pipeline.start_link_supervised!(structure: conversion_pipeline_structure)
-
-    assert_pipeline_play(fixture_pipeline_pid)
+      Pipeline.start_link_supervised!(spec: conversion_pipeline_spec)
 
     assert_sink_stream_format(fixture_pipeline_pid, :sink, %AAC{
       config: {^comparison_config, fixture_config_contents}
     })
 
     assert_end_of_stream(fixture_pipeline_pid, :sink)
-
-    assert_pipeline_play(conversion_pipeline_pid)
 
     assert_sink_stream_format(conversion_pipeline_pid, :sink, %AAC{
       config: {^comparison_config, ^fixture_config_contents}
@@ -88,13 +84,12 @@ defmodule Membrane.AAC.ParserTest do
   test "integration" do
     pipeline =
       Testing.Pipeline.start_link_supervised!(
-        structure:
+        spec:
           child(:file, %Membrane.File.Source{location: "test/fixtures/sample.aac"})
           |> child(:parser, Parser)
           |> child(:sink, Testing.Sink)
       )
 
-    assert_pipeline_play(pipeline)
     assert_sink_stream_format(pipeline, :sink, stream_format)
 
     assert stream_format == %Membrane.AAC{
@@ -125,7 +120,7 @@ defmodule Membrane.AAC.ParserTest do
     refute_sink_stream_format(pipeline, :sink, _, 0)
     refute_sink_buffer(pipeline, :sink, _, 0)
 
-    Testing.Pipeline.terminate(pipeline, blocking?: true)
+    Testing.Pipeline.terminate(pipeline)
   end
 
   test "correct AAC stream format is generated in response to provided audio specific config" do
