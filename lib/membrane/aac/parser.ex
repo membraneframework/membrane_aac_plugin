@@ -12,10 +12,11 @@ defmodule Membrane.AAC.Parser do
   alias Membrane.{AAC, Buffer}
 
   def_input_pad :input,
+    flow_control: :manual,
     demand_unit: :buffers,
     accepted_format: any_of(AAC, Membrane.RemoteStream)
 
-  def_output_pad :output, accepted_format: AAC
+  def_output_pad :output, flow_control: :manual, accepted_format: AAC
 
   def_options samples_per_frame: [
                 spec: AAC.samples_per_frame(),
@@ -37,7 +38,7 @@ defmodule Membrane.AAC.Parser do
                   | nil,
                 default: nil,
                 description: """
-                Determines which config structure will be generated and included in
+                Determines which config spec will be generated and included in
                 output stream format as `config`. For `esds` config `avg_bit_rate` and `max_bit_rate` can
                 be additionally provided and will be encoded in the `esds`. If not known they should be set to 0.
                 """
@@ -88,7 +89,7 @@ defmodule Membrane.AAC.Parser do
   end
 
   @impl true
-  def handle_process(:input, buffer, ctx, %{in_encapsulation: :ADTS} = state) do
+  def handle_buffer(:input, buffer, ctx, %{in_encapsulation: :ADTS} = state) do
     %{stream_format: stream_format} = ctx.pads.output
     timestamp = buffer.pts || state.timestamp
 
@@ -104,7 +105,7 @@ defmodule Membrane.AAC.Parser do
   end
 
   @impl true
-  def handle_process(:input, buffer, ctx, %{in_encapsulation: :none} = state) do
+  def handle_buffer(:input, buffer, ctx, %{in_encapsulation: :none} = state) do
     timestamp = buffer.pts || ADTS.next_timestamp(state.timestamp, ctx.pads.output.stream_format)
 
     buffer = %{buffer | pts: timestamp |> Ratio.to_float() |> round()}

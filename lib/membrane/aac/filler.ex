@@ -17,8 +17,12 @@ defmodule Membrane.AAC.Filler do
                      do: %Membrane.AAC{profile: :LC, channels: channels} when channels in [1, 2]
                    )
 
-  def_input_pad :input, demand_unit: :buffers, accepted_format: unquote(@accepted_format)
-  def_output_pad :output, accepted_format: unquote(@accepted_format)
+  def_input_pad :input,
+    flow_control: :manual,
+    demand_unit: :buffers,
+    accepted_format: unquote(@accepted_format)
+
+  def_output_pad :output, flow_control: :manual, accepted_format: unquote(@accepted_format)
 
   defmodule State do
     @moduledoc false
@@ -63,8 +67,8 @@ defmodule Membrane.AAC.Filler do
   end
 
   @impl true
-  def handle_process(:input, buffer, _ctx, state) do
-    use Ratio, comparison: true
+  def handle_buffer(:input, buffer, _ctx, state) do
+    use Numbers, overload_operators: true, comparison: true
 
     %{timestamp: current_timestamp} = buffer.metadata
     %{expected_timestamp: expected_timestamp, frame_duration: frame_duration} = state
@@ -88,7 +92,7 @@ defmodule Membrane.AAC.Filler do
   end
 
   defp silent_frame_needed?(expected_timestamp, current_timestamp, frame_duration) do
-    use Ratio, comparison: true
+    use Numbers, overload_operators: true, comparison: true
     current_timestamp - expected_timestamp > frame_duration / 2
   end
 end
