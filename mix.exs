@@ -61,8 +61,6 @@ defmodule Membrane.AAC.MixProject do
       {:bunch, "~> 1.0"},
       {:membrane_aac_format, "~> 0.8.0"},
       {:membrane_file_plugin, "~> 0.16.0", only: :test},
-      {:ex_crc, "~> 1.0"},
-      {:crc, "~> 0.10.2"},
 
       # Dev
       {:credo, ">= 0.0.0", only: :dev, runtime: false},
