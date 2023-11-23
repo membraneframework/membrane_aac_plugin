@@ -88,7 +88,7 @@ defmodule Membrane.AAC.Parser.ADTS do
   defp verify_header(_header, <<>>), do: :ok
 
   defp verify_header(header, crc) do
-    if crc == CRC.crc_16(header), do: :ok, else: :error
+    if crc == ExCRC.crc16ccitt(header), do: :ok, else: :error
   end
 
   defp extract_frame(data, _adts_size, size, %{out_encapsulation: :ADTS}) do
