@@ -28,7 +28,6 @@ defmodule Membrane.AAC.Parser.ADTS do
        when byte_size(data) > @header_size + @crc_size do
     withl header:
             {:ok, frame_stream_format, header, crc, frame_length} <- parse_header(data, state),
-          header: :ok <- verify_header(header, crc),
           do: adts_size = byte_size(header) + byte_size(crc),
           payload: {:frame, frame, rest} <- extract_frame(data, adts_size, frame_length, state) do
       stream_format =
@@ -84,12 +83,6 @@ defmodule Membrane.AAC.Parser.ADTS do
   end
 
   defp parse_header(_payload, _options), do: :error
-
-  defp verify_header(_header, <<>>), do: :ok
-
-  defp verify_header(header, crc) do
-    if crc == CRC.crc_16(header), do: :ok, else: :error
-  end
 
   defp extract_frame(data, _adts_size, size, %{out_encapsulation: :ADTS}) do
     case data do
