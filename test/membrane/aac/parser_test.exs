@@ -165,4 +165,32 @@ defmodule Membrane.AAC.ParserTest do
     perform_custom_sample_rate_test(:esds)
     perform_custom_sample_rate_test(:audio_specific_config)
   end
+
+  test "parses packed audio files shifting pts accordingly" do
+    structure =
+      child(:file, %Membrane.File.Source{location: "test/fixtures/packed.aac"})
+      |> child(:parser, %Parser{})
+      |> child(:sink, Testing.Sink)
+
+    pipeline = Testing.Pipeline.start_link_supervised!(structure: structure)
+
+    assert_pipeline_play(pipeline)
+    assert_sink_stream_format(pipeline, :sink, stream_format)
+
+    assert stream_format == %Membrane.AAC{
+             channels: 2,
+             encapsulation: :ADTS,
+             frames_per_buffer: 1,
+             mpeg_version: 4,
+             profile: :LC,
+             sample_rate: 48_000,
+             samples_per_frame: 1024
+           }
+
+    assert_sink_buffer(pipeline, :sink, %Membrane.Buffer{pts: pts, dts: nil})
+    assert pts == Membrane.Time.milliseconds(2100)
+
+    assert_end_of_stream(pipeline, :sink)
+    Testing.Pipeline.terminate(pipeline, blocking?: true)
+  end
 end
