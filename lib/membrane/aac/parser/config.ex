@@ -39,10 +39,23 @@ defmodule Membrane.AAC.Parser.Config do
           """)
         end)
 
-        esds_stream_format
+        esds_stream_format =
+          if esds_stream_format.channels == :AOT_specific do
+            # It means that the set of channels is described
+            # in the channel configutation, as specified by
+            # MPEG-4 p. 3, section 4.4.1.1.
+            # In our case it's sufficient
+            # to just read the number of channels
+            %{esds_stream_format | channels: stream_format.channels}
+          else
+            esds_stream_format
+          end
+
+        struct(AAC, esds_stream_format)
 
       {:audio_specific_config, audio_specific_config} ->
-        AudioSpecificConfig.parse_audio_specific_config(audio_specific_config)
+        format = AudioSpecificConfig.parse_audio_specific_config(audio_specific_config)
+        struct(AAC, format)
 
       nil ->
         stream_format

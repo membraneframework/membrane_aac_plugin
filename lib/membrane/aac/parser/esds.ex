@@ -40,7 +40,7 @@ defmodule Membrane.AAC.Parser.Esds do
     <<section_no, type_tag::binary, byte_size(payload), payload::binary>>
   end
 
-  @spec parse_esds(binary()) :: AAC.t()
+  @spec parse_esds(binary()) :: map()
   def parse_esds(esds) do
     {section_3, <<>>} = unpack_esds_section(esds, 3)
 
