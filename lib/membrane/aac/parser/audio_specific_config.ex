@@ -23,7 +23,7 @@ defmodule Membrane.AAC.Parser.AudioSpecificConfig do
       depends_on_core_coder::1, extension_flag::1>>
   end
 
-  @spec parse_audio_specific_config(binary()) :: AAC.t()
+  @spec parse_audio_specific_config(binary()) :: map()
   def parse_audio_specific_config(audio_specific_config) do
     <<profile::5, frequency_id::4, audio_specific_config_rest::bitstring>> = audio_specific_config
 
@@ -37,7 +37,7 @@ defmodule Membrane.AAC.Parser.AudioSpecificConfig do
         do: custom_frequency,
         else: AAC.sampling_frequency_id_to_sample_rate(frequency_id)
 
-    %AAC{
+    %{
       profile: AAC.aot_id_to_profile(profile),
       mpeg_version: 4,
       sample_rate: sample_rate,
