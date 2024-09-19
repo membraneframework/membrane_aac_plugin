@@ -51,7 +51,6 @@ defmodule Membrane.AAC.Filler do
   Returns a silent AAC frame that this element uses to fill gaps in the stream.
   """
   @spec silent_frame(integer()) :: binary()
-  @deprecated "This function is no longer supported"
   def silent_frame(channels), do: Map.fetch!(@silent_frames, channels)
 
   @impl true
