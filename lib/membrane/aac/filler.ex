@@ -1,9 +1,14 @@
 defmodule Membrane.AAC.Filler do
   @moduledoc """
+  ** Warning: This element is deprecated. **
+
+  ** Please use `Membrane.AudioFiller` from the `:membrane_audio_filler_plugin` to fill gaps in raw audio stream with silence. **
+
   Element that fills gaps in AAC stream with silent frames.
   """
   use Membrane.Filter
   alias Membrane.{Buffer, Time}
+  require Membrane.Logger
 
   # Silence frame per channel configuration
   @silent_frames %{
@@ -46,10 +51,16 @@ defmodule Membrane.AAC.Filler do
   Returns a silent AAC frame that this element uses to fill gaps in the stream.
   """
   @spec silent_frame(integer()) :: binary()
+  @deprecated "This function is no longer supported"
   def silent_frame(channels), do: Map.fetch!(@silent_frames, channels)
 
   @impl true
   def handle_init(_ctx, _opts) do
+    Membrane.Logger.warning("""
+    `#{__MODULE__}` element is deprecated now.
+    Please use `Membrane.AudioFiller` from the `:membrane_audio_filler_plugin` to fill gaps in raw audio stream with silence.
+    """)
+
     {[], %State{frame_duration: nil}}
   end
 
