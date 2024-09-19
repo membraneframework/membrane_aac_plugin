@@ -5,40 +5,7 @@ Mix.install([
   {:membrane_aac_plugin, path: Path.expand("./"), override: true}
 ])
 
-defmodule TimestampsGapGenerator do
-  use Membrane.Filter
-
-  def_input_pad :input, accepted_format: _any
-  def_output_pad :output, accepted_format: _any
-
-  def_options gap_duration: [
-                spec: Membrane.Time.t(),
-                default: Membrane.Time.seconds(5),
-                description: """
-                Specifies the duration of the timestamps gap.
-                """
-              ],
-              gap_start_time: [
-                spec: Membrane.Time.t(),
-                default: Membrane.Time.seconds(0),
-                description: """
-                Specifies when the timestamps gap should start.
-                """
-              ]
-
-  def handle_buffer(:input, buffer, _ctx, state) do
-    buffer =
-      if buffer.pts > state.gap_start_time do
-        %{buffer | pts: buffer.pts + state.gap_duration}
-      else
-        buffer
-      end
-
-    {[buffer: {:output, buffer}], state}
-  end
-end
-
-defmodule FillingWithSilencePipeline do
+defmodule MP4MuxingPipeline do
   use Membrane.Pipeline
 
   alias Membrane.{AAC, File, Hackney, MP4}
@@ -52,7 +19,7 @@ defmodule FillingWithSilencePipeline do
         hackney_opts: [follow_redirect: true]
       })
       |> child(:parser, %AAC.Parser{out_encapsulation: :none, output_config: :esds})
-      |> child(:muxer, %Membrane.MP4.Muxer.ISOM{})
+      |> child(:muxer, %MP4.Muxer.ISOM{})
       |> child(:sink, %File.Sink{location: "output.mp4"})
 
     {[spec: spec], %{}}
@@ -70,7 +37,7 @@ defmodule FillingWithSilencePipeline do
   end
 end
 
-{:ok, _supervisor, pid} = Membrane.Pipeline.start_link(FillingWithSilencePipeline)
+{:ok, _supervisor, pid} = Membrane.Pipeline.start_link(MP4MuxingPipeline)
 monitor_ref = Process.monitor(pid)
 
 receive do
