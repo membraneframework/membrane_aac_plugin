@@ -82,8 +82,7 @@ defmodule Membrane.AAC.Filler do
 
     buffers =
       Enum.map(silent_frames_timestamps, fn timestamp ->
-        %Buffer{buffer | payload: silent_frame_payload}
-        |> Bunch.Struct.put_in([:metadata, :timestamp], timestamp)
+        %Buffer{buffer | payload: silent_frame_payload, pts: timestamp}
       end) ++ [buffer]
 
     expected_timestamp = expected_timestamp + length(buffers) * frame_duration
