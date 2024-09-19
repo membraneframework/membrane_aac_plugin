@@ -70,7 +70,7 @@ defmodule Membrane.AAC.Filler do
   def handle_buffer(:input, buffer, _ctx, state) do
     use Numbers, overload_operators: true, comparison: true
 
-    current_timestamp = buffer.pts
+    current_timestamp = buffer.pts || buffer.dts
     %{expected_timestamp: expected_timestamp, frame_duration: frame_duration} = state
     expected_timestamp = expected_timestamp || current_timestamp
 
@@ -82,7 +82,7 @@ defmodule Membrane.AAC.Filler do
 
     buffers =
       Enum.map(silent_frames_timestamps, fn timestamp ->
-        %Buffer{buffer | payload: silent_frame_payload, pts: timestamp}
+        %Buffer{buffer | payload: silent_frame_payload, pts: timestamp, dts: timestamp}
       end) ++ [buffer]
 
     expected_timestamp = expected_timestamp + length(buffers) * frame_duration
