@@ -103,7 +103,7 @@ defmodule Membrane.AAC.Parser.ADTS do
     end
   end
 
-  @spec next_timestamp(any(), AAC.t()) :: AAC.Parser.timestamp()
+  @spec next_timestamp(AAC.Parser.timestamp(), AAC.t()) :: AAC.Parser.timestamp()
   def next_timestamp(timestamp, stream_format) do
     use Numbers, overload_operators: true
 
