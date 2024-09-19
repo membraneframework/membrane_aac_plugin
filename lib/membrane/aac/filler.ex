@@ -70,7 +70,7 @@ defmodule Membrane.AAC.Filler do
   def handle_buffer(:input, buffer, _ctx, state) do
     use Numbers, overload_operators: true, comparison: true
 
-    %{timestamp: current_timestamp} = buffer.metadata
+    current_timestamp = buffer.pts
     %{expected_timestamp: expected_timestamp, frame_duration: frame_duration} = state
     expected_timestamp = expected_timestamp || current_timestamp
 

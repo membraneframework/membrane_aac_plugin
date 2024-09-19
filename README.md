@@ -21,10 +21,19 @@ end
 ```
 
 ## Usage example
+You can find examples of usage in the `examples/` directory.
 
-TODO
+To see how to fill the gaps in AAC audio stream with silent frames, run:
+```
+elixir examples/parse_and_fill.exs
+```
 
-The docs can be found at [Hex Docs](https://hexdocs.pm/membrane_aac_plugin).
+When the script terminates, you can play the result with the following command:
+```
+ffplay output.mp4
+```
+
+The documentation can be found at [Hex Docs](https://hexdocs.pm/membrane_aac_plugin).
 
 ## Copyright and License
 
