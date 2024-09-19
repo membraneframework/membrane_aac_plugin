@@ -26,7 +26,6 @@ defmodule TimestampsGapGenerator do
                 """
               ]
 
-  @impl true
   def handle_buffer(:input, buffer, _ctx, state) do
     buffer =
       if buffer.pts > state.gap_start_time do
@@ -42,22 +41,19 @@ end
 defmodule FillingWithSilencePipeline do
   use Membrane.Pipeline
 
-  alias Membrane.{AAC, File, Hackney}
+  alias Membrane.{AAC, File, Hackney, MP4}
 
   @impl true
   def handle_init(_ctx, _opts) do
-    # child(%File.Source{location: "out.aac"})
     spec =
       child(:source, %Hackney.Source{
         location:
           "https://raw.githubusercontent.com/membraneframework/static/gh-pages/samples/test-audio.aac",
         hackney_opts: [follow_redirect: true]
       })
-      |> child(:parser, %AAC.Parser{out_encapsulation: :none})
-      |> child(:timestamps_gap_generator, TimestampsGapGenerator)
-      |> child(:filler, AAC.Filler)
-      |> child(:parser2, %AAC.Parser{out_encapsulation: :ADTS})
-      |> child(:sink, %File.Sink{location: "output.aac"})
+      |> child(:parser, %AAC.Parser{out_encapsulation: :none, output_config: :esds})
+      |> child(:muxer, %Membrane.MP4.Muxer.ISOM{})
+      |> child(:sink, %File.Sink{location: "output.mp4"})
 
     {[spec: spec], %{}}
   end

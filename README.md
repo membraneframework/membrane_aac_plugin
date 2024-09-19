@@ -23,12 +23,12 @@ end
 ## Usage example
 You can find examples of usage in the `examples/` directory.
 
-To see how to fill the gaps in AAC audio stream with silent frames, run:
+To see how the parser can be used to payload AAC stream so that it can be put in the MP4 container, run:
 ```
-elixir examples/parse_and_fill.exs
+elixir examples/add_and_put_in_mp4.exs
 ```
 
-When the script terminates, you can play the result with the following command:
+When the script terminates, you can play the result .mp4 file with the following command:
 ```
 ffplay output.mp4
 ```
