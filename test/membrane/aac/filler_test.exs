@@ -19,7 +19,7 @@ defmodule Membrane.AAC.FillerTest do
       state: state,
       current_timestamp: current_timestamp
     } do
-      current_buffer = %Buffer{metadata: %{timestamp: current_timestamp}, payload: ""}
+      current_buffer = %Buffer{pts: current_timestamp, payload: ""}
 
       assert {actions, new_state} = Filler.handle_buffer(:input, current_buffer, nil, state)
 
@@ -35,7 +35,7 @@ defmodule Membrane.AAC.FillerTest do
       skipped_frames = 10
 
       current_buffer = %Buffer{
-        metadata: %{timestamp: current_timestamp + skipped_frames},
+        pts: current_timestamp + skipped_frames,
         payload: ""
       }
 
@@ -64,7 +64,7 @@ defmodule Membrane.AAC.FillerTest do
         |> Enum.map(
           &%Membrane.Buffer{
             payload: &1,
-            metadata: %{timestamp: &1}
+            pts: &1
           }
         )
 
@@ -118,7 +118,7 @@ defmodule Membrane.AAC.FillerTest do
         state = %{state | channels: channels}
 
         buffer = %Buffer{
-          metadata: %{timestamp: current_timestamp + skipped_frames},
+          pts: current_timestamp + skipped_frames,
           payload: ""
         }
 
