@@ -15,16 +15,25 @@ The package can be installed by adding `membrane_aac_plugin` to your list of dep
 ```elixir
 def deps do
   [
-	{:membrane_aac_plugin, "~> 0.18.1"}
+	{:membrane_aac_plugin, "~> 0.18.2"}
   ]
 end
 ```
 
 ## Usage example
+You can find examples of usage in the `examples/` directory.
 
-TODO
+To see how the parser can be used to payload AAC stream so that it can be put in the MP4 container, run:
+```
+elixir examples/add_and_put_in_mp4.exs
+```
 
-The docs can be found at [Hex Docs](https://hexdocs.pm/membrane_aac_plugin).
+When the script terminates, you can play the result .mp4 file with the following command:
+```
+ffplay output.mp4
+```
+
+The documentation can be found at [Hex Docs](https://hexdocs.pm/membrane_aac_plugin).
 
 ## Copyright and License
 

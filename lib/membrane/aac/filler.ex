@@ -1,13 +1,17 @@
 defmodule Membrane.AAC.Filler do
+  @moduledoc deprecated:
+               "Please use `Membrane.AudioFiller` from the `:membrane_audio_filler_plugin` to fill gaps in raw audio stream with silence."
   @moduledoc """
+
   Element that fills gaps in AAC stream with silent frames.
   """
   use Membrane.Filter
+  require Membrane.Logger
   alias Membrane.{Buffer, Time}
 
   # Silence frame per channel configuration
   @silent_frames %{
-    1 => <<222, 2, 0, 76, 97, 118, 99, 53, 56, 46, 53, 52, 46, 49, 48, 48, 0, 2, 48, 64, 14>>,
+    1 => <<222, 2, 0, 76, 97, 118, 99, 54, 48, 46, 51, 49, 46, 49, 48, 50, 0, 2, 48, 64, 14>>,
     2 =>
       <<255, 241, 80, 128, 3, 223, 252, 222, 2, 0, 76, 97, 118, 99, 53, 56, 46, 57, 49, 46, 49,
         48, 48, 0, 66, 32, 8, 193, 24, 56>>
@@ -50,6 +54,11 @@ defmodule Membrane.AAC.Filler do
 
   @impl true
   def handle_init(_ctx, _opts) do
+    Membrane.Logger.warning("""
+    `#{__MODULE__}` element is deprecated now.
+    Please use `Membrane.AudioFiller` from the `:membrane_audio_filler_plugin` to fill gaps in raw audio stream with silence.
+    """)
+
     {[], %State{frame_duration: nil}}
   end
 
@@ -60,7 +69,9 @@ defmodule Membrane.AAC.Filler do
 
   @impl true
   def handle_stream_format(:input, stream_format, _ctx, state) do
-    new_duration = stream_format.samples_per_frame / stream_format.sample_rate * Time.second()
+    new_duration =
+      stream_format.samples_per_frame / stream_format.sample_rate * Time.second()
+
     state = %State{state | frame_duration: new_duration, channels: stream_format.channels}
 
     {[forward: stream_format], state}
@@ -70,7 +81,7 @@ defmodule Membrane.AAC.Filler do
   def handle_buffer(:input, buffer, _ctx, state) do
     use Numbers, overload_operators: true, comparison: true
 
-    %{timestamp: current_timestamp} = buffer.metadata
+    current_timestamp = buffer.pts || buffer.dts
     %{expected_timestamp: expected_timestamp, frame_duration: frame_duration} = state
     expected_timestamp = expected_timestamp || current_timestamp
 
@@ -82,8 +93,12 @@ defmodule Membrane.AAC.Filler do
 
     buffers =
       Enum.map(silent_frames_timestamps, fn timestamp ->
-        %Buffer{buffer | payload: silent_frame_payload}
-        |> Bunch.Struct.put_in([:metadata, :timestamp], timestamp)
+        %Buffer{
+          buffer
+          | payload: silent_frame_payload,
+            pts: round(timestamp),
+            dts: round(timestamp)
+        }
       end) ++ [buffer]
 
     expected_timestamp = expected_timestamp + length(buffers) * frame_duration
