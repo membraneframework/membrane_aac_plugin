@@ -1,5 +1,6 @@
 defmodule Membrane.AAC.Filler do
-  @moduledoc deprecated: "Please use `Membrane.AudioFiller` from the `:membrane_audio_filler_plugin` to fill gaps in raw audio stream with silence."
+  @moduledoc deprecated:
+               "Please use `Membrane.AudioFiller` from the `:membrane_audio_filler_plugin` to fill gaps in raw audio stream with silence."
   @moduledoc """
 
   Element that fills gaps in AAC stream with silent frames.
