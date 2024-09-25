@@ -63,8 +63,8 @@ defmodule Membrane.AAC.Parser do
     @type t :: %__MODULE__{
             samples_per_frame: AAC.samples_per_frame(),
             out_encapsulation: AAC.encapsulation(),
-            audio_specific_config: binary(),
-            output_config: :audio_specific_config | :esds,
+            audio_specific_config: binary() | nil,
+            output_config: :audio_specific_config | :esds | nil,
             avg_bit_rate: non_neg_integer(),
             max_bit_rate: non_neg_integer(),
             leftover: binary(),
@@ -123,7 +123,7 @@ defmodule Membrane.AAC.Parser do
           {stream_format_config, nil} ->
             stream_format_config
 
-          {stream_format_config, state_config} ->
+          {stream_format_config, _non_nil_state_config} ->
             Membrane.Logger.warning(
               "AAC config provided both with stream_format and options, ignoring the latter"
             )
