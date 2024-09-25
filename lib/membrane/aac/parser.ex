@@ -9,7 +9,6 @@ defmodule Membrane.AAC.Parser do
   """
   use Membrane.Filter
   require Membrane.Logger
-  alias Hex.State
   alias __MODULE__.{ADTS, Config}
   alias Membrane.{AAC, Buffer}
 
@@ -36,8 +35,8 @@ defmodule Membrane.AAC.Parser do
                 spec: binary() | nil,
                 default: nil,
                 description: """
-                Decoder configuration data AudioSpecificConfig() - if received 
-                from a side channel it should be provided via this option.
+                Decoder configuration data AudioSpecificConfig(), as defined in ISO/IEC 14496-3 - if received 
+                via side channel it should be provided via this option.
                 """
               ],
               output_config: [
@@ -50,7 +49,7 @@ defmodule Membrane.AAC.Parser do
                 description: """
                 Determines which config spec will be generated and included in output stream format as `config`:
                   - `esds` - the field will be an `esds` MP4 atom. `avg_bit_rate` and `max_bit_rate` can be 
-                    additionally provided and will be included in the `esds`. If not known they should be set to 0.
+                    additionally provided and will be included in the `esds`. If not provided they will be set to 0.
                   - `audio_specific_config` - the field will be a decoder configuration data AudioSpecificConfig(), 
                 as defined in ISO/IEC 14496-3.
                 """
@@ -113,19 +112,24 @@ defmodule Membrane.AAC.Parser do
   def handle_stream_format(:input, %AAC{} = stream_format, _ctx, state) do
     stream_format =
       stream_format
-      |> Map.update!(:config, fn
-        nil when is_binary(state.audio_specific_config) ->
-          {:audio_specific_config, state.audio_specific_config}
+      |> Map.update!(:config, fn stream_format_config ->
+        case {stream_format_config, state.audio_specific_config} do
+          {nil, nil} ->
+            nil
 
-        nil when is_nil(state.audio_specific_config) ->
-          nil
+          {nil, state_config} ->
+            {:audio_specific_config, state_config}
 
-        non_nil_config ->
-          Membrane.Logger.warning(
-            "AAC config provided both with stream_format and options, ignoring the latter"
-          )
+          {stream_format_config, nil} ->
+            stream_format_config
 
-          non_nil_config
+          {stream_format_config, state_config} ->
+            Membrane.Logger.warning(
+              "AAC config provided both with stream_format and options, ignoring the latter"
+            )
+
+            stream_format_config
+        end
       end)
       |> Config.parse_config()
 
