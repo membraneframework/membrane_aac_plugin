@@ -65,7 +65,9 @@ defmodule Membrane.AAC.Parser do
         in_encapsulation: nil,
         output_config: output_config,
         avg_bit_rate: avg_bit_rate,
-        max_bit_rate: max_bit_rate
+        max_bit_rate: max_bit_rate,
+        # For id3 handling
+        start_pts: nil
       })
 
     {[], state}
@@ -93,9 +95,26 @@ defmodule Membrane.AAC.Parser do
     %{stream_format: stream_format} = ctx.pads.output
     timestamp = buffer.pts || state.timestamp
 
-    case ADTS.parse_adts(state.leftover <> buffer.payload, stream_format, timestamp, state) do
+    {tags, payload} = parse_id3v4_tags(buffer.payload, [])
+
+    state =
+      if state.start_pts == nil do
+        update_start_pts(state, tags)
+      else
+        state
+      end
+
+    case ADTS.parse_adts(state.leftover <> payload, stream_format, timestamp, state) do
       {:ok, {output, leftover, timestamp}} ->
-        actions = Enum.map(output, fn {action, value} -> {action, {:output, value}} end)
+        actions =
+          Enum.map(output, fn
+            {:buffer, buffer} ->
+              value = correct_pts(buffer, state.start_pts)
+              {:buffer, {:output, value}}
+
+            {action, value} ->
+              {action, {:output, value}}
+          end)
 
         {actions ++ [redemand: :output], %{state | leftover: leftover, timestamp: timestamp}}
 
@@ -128,5 +147,85 @@ defmodule Membrane.AAC.Parser do
   @impl true
   def handle_demand(:output, size, :buffers, _ctx, state) do
     {[demand: {:input, size}], state}
+  end
+
+  defp update_start_pts(state, tags) do
+    start_pts =
+      Enum.find_value(tags, fn {id, val} ->
+        if(id == "com.apple.streaming.transportStreamTimestamp", do: val, else: nil)
+      end)
+
+    if start_pts != nil, do: %{state | start_pts: start_pts}, else: state
+  end
+
+  defp correct_pts(buffer, nil), do: %Buffer{buffer | pts: Ratio.to_float(buffer.pts) |> round()}
+
+  defp correct_pts(buffer, start_pts),
+    do: %Buffer{buffer | pts: Ratio.add(buffer.pts, start_pts) |> Ratio.to_float() |> round()}
+
+  defp parse_id3v4_tags(data, acc) do
+    case parse_id3v4_tag(data) do
+      {[], rest} -> {acc, rest}
+      {tags, rest} -> parse_id3v4_tags(rest, acc ++ tags)
+    end
+  end
+
+  # https://github.com/id3/ID3v2.4/blob/master/id3v2.40-structure.txt
+  defp parse_id3v4_tag(
+         <<"ID3", version::binary-size(2), flags::binary-size(1), size::binary-size(4),
+           rest::binary>>
+       ) do
+    # Here we pattern match the combo of version-flags supported.
+    <<4::8, _minor::8>> = version
+
+    # <<unsynchronisation::1, extended::1, experimental::1, footer::1, 0::4>> = flags
+    <<0::1, 0::1, 0::1, 0::1, 0::4>> = flags
+
+    size = decode_synchsafe_integer(size)
+    <<data::binary-size(size), rest::binary>> = rest
+    {parse_id3_frames(data, []), rest}
+  end
+
+  defp parse_id3v4_tag(<<"ID3", version::binary-size(2), _rest::binary>>) do
+    raise "Unsupported ID3 header version #{inspect(version)}"
+  end
+
+  defp parse_id3v4_tag(data), do: {[], data}
+
+  defp parse_id3_frames(
+         <<"PRIV", size::binary-size(4), flags::binary-size(2), rest::binary>>,
+         acc
+       ) do
+    <<_status::binary-size(1), _format::binary-size(1)>> = flags
+
+    size = decode_synchsafe_integer(size)
+    <<data::binary-size(size), rest::binary>> = rest
+
+    [owner_identifier, private_data] = :binary.split(data, <<0>>)
+    tag = parse_priv_tag(owner_identifier, private_data)
+    parse_id3_frames(rest, [tag | acc])
+  end
+
+  defp parse_id3_frames(<<>>, acc), do: Enum.reverse(acc)
+
+  defp parse_priv_tag(id = "com.apple.streaming.transportStreamTimestamp", data) do
+    # https://datatracker.ietf.org/doc/html/draft-pantos-http-live-streaming-19#section-3
+    rem = bit_size(data) - 33
+    <<_pad::size(rem), data::33-big>> = data
+    secs = data / 90_000
+    ns = Membrane.Time.nanoseconds(round(secs * 1_000_000_000))
+    {id, ns}
+  end
+
+  defp parse_priv_tag(id, data), do: {id, data}
+
+  defp decode_synchsafe_integer(binary) do
+    import Bitwise
+
+    binary
+    |> :binary.bin_to_list()
+    |> Enum.reverse()
+    |> Enum.with_index()
+    |> Enum.reduce(0, fn {el, index}, acc -> acc ||| el <<< (index * 7) end)
   end
 end
