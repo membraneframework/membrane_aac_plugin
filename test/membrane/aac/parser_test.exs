@@ -62,7 +62,9 @@ defmodule Membrane.AAC.ParserTest do
       config: nil
     }
 
-    state = %{
+    state = %Membrane.AAC.Parser.State{
+      samples_per_frame: 1024,
+      audio_specific_config: nil,
       avg_bit_rate: 0,
       max_bit_rate: 0,
       output_config: transition_config,
