@@ -133,6 +133,22 @@ defmodule Membrane.AAC.Parser do
       end)
       |> Config.parse_config()
 
+    if stream_format.encapsulation == :none and
+         (stream_format.profile == nil or stream_format.channels == nil or
+            stream_format.sample_rate == nil) do
+      raise """
+      Not enough information provided to parse the stream. 
+      Profile, channels and sample rate need to be provided one of the following ways:
+        - ADTS encapsulation
+        - Stream format, either explicitly or through `:config` field
+        - `:audio_specific_config` option of this element
+      However they evaluated to: 
+        - Profile: #{inspect(stream_format.profile)}
+        - Channels: #{inspect(stream_format.channels)}
+        - Sample rate: #{inspect(stream_format.sample_rate)}
+      """
+    end
+
     config = Config.generate_config(stream_format, state)
 
     {[
