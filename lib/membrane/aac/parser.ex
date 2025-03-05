@@ -138,7 +138,7 @@ defmodule Membrane.AAC.Parser do
             stream_format.sample_rate == nil) do
       raise """
       Not enough information provided to parse the stream. 
-      Profile, channels and sample rate need to be provided one of the following ways:
+      Profile, channels and sample rate need to be provided in one of the following ways:
         - ADTS encapsulation
         - Stream format, either explicitly or through `:config` field
         - `:audio_specific_config` option of this element
