@@ -1,7 +1,7 @@
 defmodule Membrane.AAC.MixProject do
   use Mix.Project
 
-  @version "0.19.1"
+  @version "0.19.2"
   @github_url "https://github.com/membraneframework/membrane_aac_plugin"
 
   def project do
@@ -14,14 +14,15 @@ defmodule Membrane.AAC.MixProject do
       dialyzer: dialyzer(),
 
       # hex
-      description: "Membrane Multimedia Framework plugin for AAC",
+      description: "Parses AAC bitstreams and extracts metadata for MP4 muxing.",
       package: package(),
 
       # docs
       name: "Membrane AAC plugin",
       source_url: @github_url,
       homepage_url: "https://membraneframework.org",
-      docs: docs()
+      docs: docs(),
+      aliases: [docs: ["docs", &prepend_llms_links/1]]
     ]
   end
 
@@ -39,7 +40,6 @@ defmodule Membrane.AAC.MixProject do
       main: "readme",
       extras: ["README.md", "LICENSE"],
       source_ref: "v#{@version}",
-      formatters: ["html"],
       nest_modules_by_prefix: [Membrane.AAC]
     ]
   end
@@ -64,7 +64,7 @@ defmodule Membrane.AAC.MixProject do
 
       # Dev
       {:credo, ">= 0.0.0", only: :dev, runtime: false},
-      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
       {:dialyxir, ">= 0.0.0", only: :dev, runtime: false}
     ]
   end
@@ -79,6 +79,28 @@ defmodule Membrane.AAC.MixProject do
       [plt_local_path: "priv/plts", plt_core_path: "priv/plts"] ++ opts
     else
       opts
+    end
+  end
+
+  defp prepend_llms_links(_) do
+    output_dir = docs()[:output] || "doc"
+    path = Path.join(output_dir, "llms.txt")
+
+    if File.exists?(path) do
+      existing = File.read!(path)
+
+      footer = """
+
+
+      ## See Also
+
+      - [Membrane Framework AI Skill](https://hexdocs.pm/membrane_core/skill.md)
+      - [Membrane Core](https://hexdocs.pm/membrane_core/llms.txt)
+      """
+
+      File.write!(path, String.trim_trailing(existing) <> footer)
+    else
+      IO.warn("#{path} not found — llms.txt was not generated, check your ex_doc configuration")
     end
   end
 end
