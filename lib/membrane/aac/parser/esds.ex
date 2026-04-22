@@ -45,8 +45,7 @@ defmodule Membrane.AAC.Parser.Esds do
     {section_3, <<>>} = unpack_esds_section(esds, 3)
 
     <<_elementary_stream_id::16, stream_dependence_flag::1, url_flag::1, ocr_stream_flag::1,
-      _stream_priority::5,
-      rest::binary>> =
+      _stream_priority::5, rest::binary>> =
       section_3
 
     rest =
