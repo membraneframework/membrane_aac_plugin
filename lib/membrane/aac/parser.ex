@@ -10,7 +10,7 @@ defmodule Membrane.AAC.Parser do
   use Membrane.Filter
   require Membrane.Logger
   alias __MODULE__.{ADTS, Config}
-  alias Membrane.{AAC, Buffer}
+  alias Membrane.AAC
 
   def_input_pad :input,
     flow_control: :manual,
@@ -187,7 +187,7 @@ defmodule Membrane.AAC.Parser do
     buffer =
       case state.out_encapsulation do
         :ADTS ->
-          %Buffer{
+          %{
             buffer
             | payload: ADTS.payload_to_adts(buffer.payload, ctx.pads.output.stream_format)
           }

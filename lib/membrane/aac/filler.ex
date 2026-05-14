@@ -7,7 +7,7 @@ defmodule Membrane.AAC.Filler do
   """
   use Membrane.Filter
   require Membrane.Logger
-  alias Membrane.{Buffer, Time}
+  alias Membrane.Time
 
   # Silence frame per channel configuration
   @silent_frames %{
@@ -72,7 +72,7 @@ defmodule Membrane.AAC.Filler do
     new_duration =
       stream_format.samples_per_frame / stream_format.sample_rate * Time.second()
 
-    state = %State{state | frame_duration: new_duration, channels: stream_format.channels}
+    state = %{state | frame_duration: new_duration, channels: stream_format.channels}
 
     {[forward: stream_format], state}
   end
@@ -93,7 +93,7 @@ defmodule Membrane.AAC.Filler do
 
     buffers =
       Enum.map(silent_frames_timestamps, fn timestamp ->
-        %Buffer{
+        %{
           buffer
           | payload: silent_frame_payload,
             pts: round(timestamp),

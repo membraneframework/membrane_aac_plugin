@@ -4,8 +4,8 @@ defmodule Membrane.AAC.ParserTest do
   use ExUnit.Case
   import Membrane.ChildrenSpec
   import Membrane.Testing.Assertions
-  alias Membrane.AAC.Parser
   alias Membrane.{AAC, Testing}
+  alias Membrane.AAC.Parser
   alias Membrane.Testing.Pipeline
 
   @expected_timestamps [
