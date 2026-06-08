@@ -44,9 +44,8 @@ defmodule Membrane.AAC.Parser.Esds do
   def parse_esds(esds) do
     {section_3, <<>>} = unpack_esds_section(esds, 3)
 
-    <<_elementary_stream_id::16, stream_dependence_flag::1, url_flag::1, ocr_stream_flag::1,
-      _stream_priority::5, rest::binary>> =
-      section_3
+    <<_elementary_stream_id::16, flags::binary-size(1), rest::binary>> = section_3
+    <<stream_dependence_flag::1, url_flag::1, ocr_stream_flag::1, _stream_priority::5>> = flags
 
     rest =
       rest
@@ -72,10 +71,13 @@ defmodule Membrane.AAC.Parser.Esds do
     # 5 = audio
     stream_type = 5
     upstream_flag = 0
-    reserved_flag_set_to_1 = 1
 
-    <<^object_type_id, ^stream_type::6, ^upstream_flag::1, ^reserved_flag_set_to_1::1,
-      _buffer_size::24, _max_bit_rate::32, _avg_bit_rate::32, esds_section_5::binary>> = section_4
+    # The trailing bit of this byte is "reserved" and ISO/IEC 14496-1 mandates
+    # it be set to 1. Some encoders leave it cleared (emitting 0x14 instead of
+    # 0x15), so we accept either value rather than crashing on otherwise-valid
+    # streams.
+    <<^object_type_id, ^stream_type::6, ^upstream_flag::1, _reserved_flag::1, _buffer_size::24,
+      _max_bit_rate::32, _avg_bit_rate::32, esds_section_5::binary>> = section_4
 
     {section_5, <<>>} = unpack_esds_section(esds_section_5, 5)
 
