@@ -4,8 +4,8 @@ defmodule Membrane.AAC.ParserTest do
   use ExUnit.Case
   import Membrane.ChildrenSpec
   import Membrane.Testing.Assertions
-  alias Membrane.AAC.Parser
   alias Membrane.{AAC, Testing}
+  alias Membrane.AAC.Parser
   alias Membrane.Testing.Pipeline
 
   @expected_timestamps [
@@ -62,7 +62,9 @@ defmodule Membrane.AAC.ParserTest do
       config: nil
     }
 
-    state = %{
+    state = %Membrane.AAC.Parser.State{
+      samples_per_frame: 1024,
+      audio_specific_config: nil,
       avg_bit_rate: 0,
       max_bit_rate: 0,
       output_config: transition_config,

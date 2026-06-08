@@ -8,8 +8,9 @@ defmodule Membrane.AAC.Parser do
   If PTS is absent, it calculates and puts one based on the sample rate.
   """
   use Membrane.Filter
+  require Membrane.Logger
   alias __MODULE__.{ADTS, Config}
-  alias Membrane.{AAC, Buffer}
+  alias Membrane.AAC
 
   def_input_pad :input,
     flow_control: :manual,
@@ -30,6 +31,14 @@ defmodule Membrane.AAC.Parser do
                 Determines whether output AAC frames should be prefixed with ADTS headers
                 """
               ],
+              audio_specific_config: [
+                spec: binary() | nil,
+                default: nil,
+                description: """
+                Decoder configuration data AudioSpecificConfig(), as defined in ISO/IEC 14496-3 - if received 
+                via side channel it should be provided via this option.
+                """
+              ],
               output_config: [
                 spec:
                   :audio_specific_config
@@ -38,42 +47,107 @@ defmodule Membrane.AAC.Parser do
                   | nil,
                 default: nil,
                 description: """
-                Determines which config spec will be generated and included in
-                output stream format as `config`. For `esds` config `avg_bit_rate` and `max_bit_rate` can
-                be additionally provided and will be encoded in the `esds`. If not known they should be set to 0.
+                Determines which config spec will be generated and included in output stream format as `config`:
+                  - `esds` - the field will be an `esds` MP4 atom. `avg_bit_rate` and `max_bit_rate` can be 
+                    additionally provided and will be included in the `esds`. If not provided they will be set to 0.
+                  - `audio_specific_config` - the field will be a decoder configuration data AudioSpecificConfig(), 
+                as defined in ISO/IEC 14496-3.
                 """
               ]
 
   @type timestamp :: Ratio.t() | Membrane.Time.t()
 
-  @impl true
-  def handle_init(_ctx, options) do
-    {output_config, options} = Map.pop!(options, :output_config)
+  defmodule State do
+    @moduledoc false
 
+    @type t :: %__MODULE__{
+            samples_per_frame: AAC.samples_per_frame(),
+            out_encapsulation: AAC.encapsulation(),
+            audio_specific_config: binary() | nil,
+            output_config: :audio_specific_config | :esds | nil,
+            avg_bit_rate: non_neg_integer(),
+            max_bit_rate: non_neg_integer(),
+            leftover: binary(),
+            timestamp: Membrane.AAC.Parser.timestamp(),
+            in_encapsulation: AAC.encapsulation() | nil
+          }
+
+    @enforce_keys [
+      :samples_per_frame,
+      :out_encapsulation,
+      :audio_specific_config,
+      :output_config,
+      :avg_bit_rate,
+      :max_bit_rate
+    ]
+    defstruct @enforce_keys ++
+                [
+                  leftover: <<>>,
+                  timestamp: 0,
+                  in_encapsulation: nil
+                ]
+  end
+
+  @impl true
+  def handle_init(_ctx, opts) do
     {output_config, avg_bit_rate, max_bit_rate} =
-      case output_config do
+      case opts.output_config do
         {:esds, avg_bit_rate, max_bit_rate} -> {:esds, avg_bit_rate, max_bit_rate}
         config -> {config, 0, 0}
       end
 
-    state =
-      options
-      |> Map.from_struct()
-      |> Map.merge(%{
-        leftover: <<>>,
-        timestamp: 0,
-        in_encapsulation: nil,
-        output_config: output_config,
-        avg_bit_rate: avg_bit_rate,
-        max_bit_rate: max_bit_rate
-      })
+    state = %State{
+      samples_per_frame: opts.samples_per_frame,
+      out_encapsulation: opts.out_encapsulation,
+      audio_specific_config: opts.audio_specific_config,
+      output_config: output_config,
+      avg_bit_rate: avg_bit_rate,
+      max_bit_rate: max_bit_rate
+    }
 
     {[], state}
   end
 
   @impl true
   def handle_stream_format(:input, %AAC{} = stream_format, _ctx, state) do
-    stream_format = Config.parse_config(stream_format)
+    stream_format =
+      stream_format
+      |> Map.update!(:config, fn stream_format_config ->
+        case {stream_format_config, state.audio_specific_config} do
+          {nil, nil} ->
+            nil
+
+          {nil, state_config} ->
+            {:audio_specific_config, state_config}
+
+          {stream_format_config, nil} ->
+            stream_format_config
+
+          {stream_format_config, _non_nil_state_config} ->
+            Membrane.Logger.warning(
+              "AAC config provided both with stream_format and options, ignoring the latter"
+            )
+
+            stream_format_config
+        end
+      end)
+      |> Config.parse_config()
+
+    if stream_format.encapsulation == :none and
+         (stream_format.profile == nil or stream_format.channels == nil or
+            stream_format.sample_rate == nil) do
+      raise """
+      Not enough information provided to parse the stream. 
+      Profile, channels and sample rate need to be provided in one of the following ways:
+        - ADTS encapsulation
+        - Stream format, either explicitly or through `:config` field
+        - `:audio_specific_config` option of this element
+      However they evaluated to: 
+        - Profile: #{inspect(stream_format.profile)}
+        - Channels: #{inspect(stream_format.channels)}
+        - Sample rate: #{inspect(stream_format.sample_rate)}
+      """
+    end
 
     config = Config.generate_config(stream_format, state)
 
@@ -113,7 +187,7 @@ defmodule Membrane.AAC.Parser do
     buffer =
       case state.out_encapsulation do
         :ADTS ->
-          %Buffer{
+          %{
             buffer
             | payload: ADTS.payload_to_adts(buffer.payload, ctx.pads.output.stream_format)
           }
