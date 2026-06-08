@@ -39,23 +39,17 @@ defmodule Membrane.AAC.Parser.Config do
           """)
         end)
 
-        esds_stream_format =
-          if esds_stream_format.channels == :AOT_specific do
-            # It means that the set of channels is described
-            # in the channel configutation, as specified by
-            # MPEG-4 p. 3, section 4.4.1.1.
-            # In our case it's sufficient
-            # to just read the number of channels
-            %{esds_stream_format | channels: stream_format.channels}
-          else
-            esds_stream_format
-          end
-
-        struct(AAC, esds_stream_format)
+        if is_nil(esds_stream_format.channels) do
+          # channels == nil means the channel config ID was 0 (AOT_specific),
+          # meaning the channel layout is described in the bitstream per
+          # MPEG-4 p. 3, section 4.4.1.1. Fall back to the outer stream_format.
+          %{esds_stream_format | channels: stream_format.channels}
+        else
+          esds_stream_format
+        end
 
       {:audio_specific_config, audio_specific_config} ->
-        format = AudioSpecificConfig.parse_audio_specific_config(audio_specific_config)
-        struct(AAC, format)
+        AudioSpecificConfig.parse_audio_specific_config(audio_specific_config)
 
       nil ->
         stream_format
