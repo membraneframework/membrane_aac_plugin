@@ -41,7 +41,11 @@ defmodule Membrane.AAC.Parser.AudioSpecificConfig do
       profile: AAC.aot_id_to_profile(profile),
       mpeg_version: 4,
       sample_rate: sample_rate,
-      channels: AAC.channel_config_id_to_channels(channel_config_id),
+      channels:
+        case AAC.channel_config_id_to_channels(channel_config_id) do
+          :AOT_specific -> nil
+          channels -> channels
+        end,
       encapsulation: :none,
       samples_per_frame: AAC.frame_length_id_to_samples_per_frame(frame_length_id),
       config: {:audio_specific_config, audio_specific_config}
