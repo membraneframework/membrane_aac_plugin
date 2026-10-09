@@ -86,7 +86,7 @@ defmodule Membrane.AAC.Parser.ADTS do
 
   defp extract_frame(data, _adts_size, size, %{out_encapsulation: :ADTS}) do
     case data do
-      <<frame::binary-size(size), rest::binary>> -> {:frame, frame, rest}
+      <<frame::binary-size(^size), rest::binary>> -> {:frame, frame, rest}
       _other -> :no_frame
     end
   end
@@ -95,7 +95,7 @@ defmodule Membrane.AAC.Parser.ADTS do
     frame_size = size - adts_size
 
     case data do
-      <<_adts::binary-size(adts_size), frame::binary-size(frame_size), rest::binary>> ->
+      <<_adts::binary-size(^adts_size), frame::binary-size(^frame_size), rest::binary>> ->
         {:frame, frame, rest}
 
       _other ->

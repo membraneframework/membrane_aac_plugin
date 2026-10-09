@@ -55,7 +55,7 @@ defmodule Membrane.AAC.Parser.Esds do
       end)
       |> Bunch.then_if(url_flag != 0, fn binary ->
         <<url_length::8, rest::binary>> = binary
-        <<_url::binary-size(url_length), rest::binary>> = rest
+        <<_url::binary-size(^url_length), rest::binary>> = rest
         rest
       end)
       |> Bunch.then_if(ocr_stream_flag != 0, fn binary ->
@@ -90,11 +90,11 @@ defmodule Membrane.AAC.Parser.Esds do
 
     case section do
       <<^section_no::8-integer, ^type_tag::binary-size(3), payload_size::8-integer, rest::binary>> ->
-        <<payload::binary-size(payload_size), rest::binary>> = rest
+        <<payload::binary-size(^payload_size), rest::binary>> = rest
         {payload, rest}
 
       <<^section_no::8-integer, payload_size::8-integer, rest::binary>> ->
-        <<payload::binary-size(payload_size), rest::binary>> = rest
+        <<payload::binary-size(^payload_size), rest::binary>> = rest
         {payload, rest}
     end
   end

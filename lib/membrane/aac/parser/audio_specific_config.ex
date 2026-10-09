@@ -29,7 +29,7 @@ defmodule Membrane.AAC.Parser.AudioSpecificConfig do
 
     custom_frequency_length = if frequency_id == 15, do: 24, else: 0
 
-    <<custom_frequency::integer-size(custom_frequency_length), channel_config_id::4,
+    <<custom_frequency::integer-size(^custom_frequency_length), channel_config_id::4,
       frame_length_id::1, _rest::bits>> = audio_specific_config_rest
 
     sample_rate =
