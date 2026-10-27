@@ -16,7 +16,7 @@ defmodule Membrane.AAC.Parser.ADTS do
   @spec parse_adts(binary, AAC.t() | nil, AAC.Parser.timestamp(), Membrane.Element.state()) ::
           {:ok,
            {[{:stream_format, AAC.t()} | {:buffer, Buffer.t()}], binary, AAC.Parser.timestamp()}}
-          | {:error, :invalid_adts_header}
+          | {:error, :invalid_adts_header | :invalid_frame_length}
   def parse_adts(data, stream_format, timestamp, state) do
     with {:ok, {output, {rest, timestamp}}} <-
            Bunch.List.try_unfoldr({data, stream_format, timestamp}, &do_parse_adts(&1, state)) do
@@ -29,6 +29,7 @@ defmodule Membrane.AAC.Parser.ADTS do
     withl header:
             {:ok, frame_stream_format, header, crc, frame_length} <- parse_header(data, state),
           do: adts_size = byte_size(header) + byte_size(crc),
+          length_valid?: true <- frame_length > adts_size,
           payload: {:frame, frame, rest} <- extract_frame(data, adts_size, frame_length, state) do
       stream_format =
         if stream_format == frame_stream_format,
@@ -42,6 +43,7 @@ defmodule Membrane.AAC.Parser.ADTS do
         {rest, frame_stream_format, next_timestamp(timestamp, frame_stream_format)}}}
     else
       header: :error -> {:error, :invalid_adts_header}
+      length_valid?: false -> {:error, :invalid_frame_length}
       payload: :no_frame -> {:ok, {:halt, {data, timestamp}}}
     end
   end
