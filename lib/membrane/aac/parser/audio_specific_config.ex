@@ -13,7 +13,6 @@ defmodule Membrane.AAC.Parser.AudioSpecificConfig do
           | {:unsupported_sampling_frequency_id, 13..14}
           | {:unsupported_channel_config_id, 8..15}
 
-  # the ids of AAC.audio_object_type_id(), AAC.sampling_frequency_id() and AAC.channel_config_id()
   @audio_object_type_ids [1, 2, 3, 4, 5, 29]
   @sampling_frequency_ids Enum.to_list(0..12) ++ [15]
   @channel_config_ids 0..7
